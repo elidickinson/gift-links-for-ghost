@@ -1,0 +1,1 @@
+ALTER TABLE sessions ADD COLUMN refresh_failures INTEGER NOT NULL DEFAULT 0;

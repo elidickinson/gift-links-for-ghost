@@ -1,0 +1,4 @@
+Ghost/
+node_modules/
+.wrangler/
+.env

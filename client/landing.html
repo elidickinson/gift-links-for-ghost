@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Gift Links for Ghost</title>
+<meta name="description" content="Let paid Ghost subscribers share paywalled articles with anyone via gift links. Simple, free service.">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; color: #333; line-height: 1.6; }
+  main { max-width: 760px; margin: 0 auto; padding: 60px 20px; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  .tagline { font-size: 17px; color: #666; margin-bottom: 48px; }
+  h2 { font-size: 18px; margin: 36px 0 12px; }
+  p { margin-bottom: 12px; }
+  pre { background: #f4f4f4; padding: 10px 14px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 8px 0; text-align: center; }
+  ol, ul { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 8px; }
+  a { color: #4a90d9; }
+  footer { text-align: center; padding: 40px 20px 24px; color: #999; font-size: 13px; }
+  footer a { color: #999; }
+  .setup-msg { font-weight: bold; }
+  .setup-error { color: #c00; }
+  .setup-ok { color: #2e7d32; }
+  /* How it works diagram */
+  .diagram { margin: 16px 0; }
+  .diagram-label { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+  .diagram-flow { display: flex; align-items: stretch; margin-bottom: 20px; }
+  .diagram-flow .step { flex: 1; background: #f4f4f4; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.4; }
+  .diagram-flow .step strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  .diagram-flow .arrow { display: flex; align-items: center; color: #aaa; padding: 0 10px; font-size: 20px; flex-shrink: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 12px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; }
+  th { font-weight: 600; white-space: nowrap; }
+  .faq { background: #f9f9f9; border-radius: 8px; padding: 24px 28px 12px; margin: 36px 0; }
+  .faq h2 { margin-top: 0; }
+  .faq p { font-size: 15px; }
+  details { margin: 36px 0; }
+  summary { font-size: 18px; font-weight: 600; cursor: pointer; }
+</style>
+<script defer src="https://umami.eli.pizza/script.js" data-website-id="0ca178a5-0faa-4442-8f1a-243d2c4923c2"></script>
+</head>
+<body>
+<main>
+
+<h1>Gift Links for Ghost</h1>
+<p class="tagline">Let members share paywalled posts with anyone.</p>
+
+<p>Adds a "Gift this article" button to your Ghost site that appears on articles that require paid access. Paying members click the button and get a special gift link they can share. Anyone who visits that gift link can read the full post without an account. Gift links expire after 14 days.</p>
+
+<h2>Setup</h2>
+<ol>
+  <li>In Ghost Admin, go to <strong>Members</strong> and create a new member with the email <strong>bot@giftlinks.net</strong>. Give it a <strong>complimentary subscription</strong> to a paid tier.</li>
+  <li>Enter your Ghost site URL below and click Connect. This sends the bot the sign-in email it needs to read your paywalled posts.<br>
+  <form action="/api/setup" method="POST" style="margin-top: 8px; display: flex; gap: 8px;">
+    <input name="url" type="text" placeholder="yourblog.com" required style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+    <button type="submit" style="padding: 8px 18px; background: #6b7280; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap;">Connect</button>
+  </form>
+  <script>document.querySelector('form').onsubmit = function() { var b = this.querySelector('button'); b.disabled = true; b.textContent = 'Please wait\u2026'; }</script>
+  <!--SETUP_MSG--></li>
+</ol>
+
+<ol start="3">
+  <li>In Ghost Admin, go to <strong>Settings &rarr; Code injection</strong> and paste this in the <strong>Site footer</strong>:<br>
+  <pre>&lt;script src="https://giftlinks.net/client.js" defer&gt;&lt;/script&gt;</pre></li>
+</ol>
+
+<h2>How it works</h2>
+<p>A small script on your site adds a "Gift this article" button to paywalled posts for paying members.</p>
+
+<div class="diagram">
+  <div class="diagram-label">Sharing a post:</div>
+  <div class="diagram-flow">
+    <div class="step"><img src="/gift-this-article-button.png" alt="'Gift this article' button" style="display:block; margin:3px auto; max-width:120px; border-radius:4px;">A member of your site clicks this button.</div>
+    <span class="arrow">&rarr;</span>
+    <div class="step"><strong>giftlinks.net verifies &amp; creates link</strong>A unique gift URL is generated and stored.</div>
+    <span class="arrow">&rarr;</span>
+    <div class="step"><strong>Gift URL copied to clipboard</strong>A special link to the post with <code>?gift=xxxxx</code> on the end.</div>
+  </div>
+  <div class="diagram-label">Opening a gift link:</div>
+  <div class="diagram-flow">
+    <div class="step"><strong>Visitor arrives at your site</strong>Ghost shows the paywall as usual.</div>
+    <span class="arrow">&rarr;</span>
+    <div class="step"><strong>Script sends token to giftlinks.net</strong>The bot fetches the full post using its comped membership.</div>
+    <span class="arrow">&rarr;</span>
+    <div class="step"><strong>Full article appears inline</strong>The script replaces paywall with full post content. </div>
+  </div>
+</div>
+
+<h2>Features</h2>
+<ul>
+    <li><strong>Uses normal links.</strong> Gift links are regular links to a post on your site. They just have an extra code on the end. Link previews, analytics, etc should all work as usual.</li>
+    <li><strong>Multi-use links.</strong> A gift link can be shared with multiple people. One link, share it anywhere for 14 days.</li>
+    <li><strong>Nothing stored on your Ghost server.</strong> The client script, tokens, and bot session all live on Cloudflare. Uninstall by removing one line of code injection.</li>
+    <li><strong>Trustless.</strong> Does not require Admin API.</li>
+</ul>
+
+<div class="faq">
+<h2>FAQ</h2>
+<p><strong>What does it cost?</strong> The service is free. It's very inexpensive to host. Maybe there will be a Pro version some day, but the basic app will stay free.</p>
+<p><strong>Does the bot have admin access?</strong> No. The bot is a regular comped member. It can only read content a paid subscriber would see.</p>
+<p><strong>What happens when a gift link expires?</strong> The visitor sees the normal paywalled post with a message the gift link is expired. Nothing breaks.</p>
+<p><strong>Can a gift link be shared with multiple people?</strong> Yes. A single link works for anyone who opens it for an unlimited number of clicks, until it expires after 14 days.</p>
+<p><strong>Can I limit how many times a gift link can be used?</strong> Not yet.</p>
+<p><strong>How do I uninstall?</strong> Remove the code injection line and delete the bot member from Ghost Admin.</p>
+<p><strong>More questions?</strong> Email me <a href="mailto:eli@elidickinson.com">eli@elidickinson.com</a> or find me on Bluesky <a href="https://bsky.app/profile/eli.pizza">@eli.pizza</a></p>
+</div>
+
+<details>
+<summary>Customizing gift links</summary>
+<p>Override any user-facing string by setting <code>window.gl4g_strings</code> in Ghost Code Injection <strong>before</strong> the client script:</p>
+<pre style="text-align: left;">&lt;script&gt;
+window.gl4g_strings = {
+  button_text: 'Share this post',
+  gift_banner: 'This article was shared with you by {name}.',
+};
+&lt;/script&gt;
+&lt;script src="https://giftlinks.net/client.js" defer&gt;&lt;/script&gt;</pre>
+<table>
+  <tr><th>Key</th><th>Default</th></tr>
+  <tr><td><code>button_text</code></td><td>Gift this article</td></tr>
+  <tr><td><code>creating_text</code></td><td>Creating link&hellip;</td></tr>
+  <tr><td><code>loading_text</code></td><td>Loading gifted article&hellip;</td></tr>
+  <tr><td><code>expired_text</code></td><td>This gift link has expired.</td></tr>
+  <tr><td><code>error_text</code></td><td>Something went wrong. Please try again.</td></tr>
+  <tr><td><code>created_text</code></td><td>Gift link created! Copy it below&hellip;</td></tr>
+  <tr><td><code>gift_banner</code></td><td>You&rsquo;re accessing a gift link. Subscribe&hellip; (HTML ok, <code>{name}</code> placeholder)</td></tr>
+  <tr><td><code>copy_text</code></td><td>Copy</td></tr>
+  <tr><td><code>copied_text</code></td><td>Copied!</td></tr>
+</table>
+<p><strong>CSS:</strong> To customize styles, target the <code>.gl4g-</code> prefixed classes in Code Injection. For example, use <code><strong>.gh-content .gl4g-bar</strong></code> for the banner and <code><strong>.gl4g-button</strong></code> for the gift button.</p>
+</details>
+
+</main>
+<footer>
+ By <a href="https://www.elidickinson.com/">Eli Dickinson</a> &middot; <a href="/privacy">Privacy Policy</a> &middot; A project of <a href="https://sidget.com">☁️ Sidget LLC</a>
+</footer>
+<br>
+</body>
+</html>

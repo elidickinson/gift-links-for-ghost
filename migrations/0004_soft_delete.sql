@@ -1,0 +1,1 @@
+ALTER TABLE gift_links ADD COLUMN expired_at INTEGER DEFAULT NULL;
