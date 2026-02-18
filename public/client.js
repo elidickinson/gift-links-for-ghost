@@ -18,7 +18,7 @@
     expired_text: 'This gift link has expired.',
     error_text: 'Something went wrong. Please try again.',
     created_text: 'Gift link created! Copy it below, or just share this page\u2019s URL.',
-    gift_banner: 'You\u2019re accessing a gift link. <a href="#/portal/signup">Subscribe</a> to get full access.',
+    gift_banner: 'This post was gifted to you by a paying member. <a href="#/portal/signup">Subscribe</a> for full access to the site.',
     copy_text: 'Copy',
     copied_text: 'Copied!',
   };

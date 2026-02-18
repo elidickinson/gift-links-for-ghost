@@ -1,6 +1,7 @@
 {
   "name": "giftlinks",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "setup": "scripts/dev-setup.sh",

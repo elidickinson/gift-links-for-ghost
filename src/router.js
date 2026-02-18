@@ -56,6 +56,7 @@ export async function handleRequest(request, env, ctx) {
   }
 
   if (url.pathname.startsWith('/.') || url.pathname.startsWith('/wp-')) {
+    // Send annoying bots to the tarpit to waste their time. Childish, I know...
     return Response.redirect(`https://tarpit.esd.workers.dev${url.pathname}`);
   }
 

@@ -11,7 +11,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, system-ui, sans-serif; color: #333; line-height: 1.6; }
   main { max-width: 760px; margin: 0 auto; padding: 60px 20px; }
-  h1 { font-size: 28px; margin-bottom: 8px; }
+  h1 { font-size: 28px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
   .tagline { font-size: 17px; color: #666; margin-bottom: 48px; }
   h2 { font-size: 18px; margin: 36px 0 12px; }
   p { margin-bottom: 12px; }
@@ -45,7 +45,10 @@
 <body>
 <main>
 
-<h1>Gift Links for Ghost</h1>
+<h1>
+    <img src="/apple-touch-icon.png" alt="" style="max-width:48px; border-radius:4px;">
+    Gift Links for Ghost
+</h1>
 <p class="tagline">Let members share paywalled posts with anyone.</p>
 
 <p>Adds a "Gift this article" button to your Ghost site that appears on articles that require paid access. Paying members click the button and get a special gift link they can share. Anyone who visits that gift link can read the full post without an account. Gift links expire after 14 days.</p>
@@ -100,11 +103,13 @@
 <div class="faq">
 <h2>FAQ</h2>
 <p><strong>What does it cost?</strong> The service is free. It's very inexpensive to host. Maybe there will be a Pro version some day, but the basic app will stay free.</p>
+<p><strong>Is the source code available?</strong> Not yet. Soon!</p>
 <p><strong>Does the bot have admin access?</strong> No. The bot is a regular comped member. It can only read content a paid subscriber would see.</p>
 <p><strong>What happens when a gift link expires?</strong> The visitor sees the normal paywalled post with a message the gift link is expired. Nothing breaks.</p>
 <p><strong>Can a gift link be shared with multiple people?</strong> Yes. A single link works for anyone who opens it for an unlimited number of clicks, until it expires after 14 days.</p>
 <p><strong>Can I limit how many times a gift link can be used?</strong> Not yet.</p>
 <p><strong>How do I uninstall?</strong> Remove the code injection line and delete the bot member from Ghost Admin.</p>
+<p><strong>Are you doing something sneaky with my content/data?</strong> No. See the <a href="/privacy">privacy policy</a>.</p>
 <p><strong>More questions?</strong> Email me <a href="mailto:eli@elidickinson.com">eli@elidickinson.com</a> or find me on Bluesky <a href="https://bsky.app/profile/eli.pizza">@eli.pizza</a></p>
 </div>
 

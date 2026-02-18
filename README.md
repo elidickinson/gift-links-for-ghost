@@ -1,8 +1,8 @@
-# <img src="public/apple-touch-icon.png" alt="Gift Links for Ghost" width="80"> Gift Links for Ghost
+# <img src="public/apple-touch-icon.png" alt="" width="28" align="absmiddle"> Gift Links for Ghost
 
 Let paid Ghost subscribers share paywalled articles with anyone via gift links. No theme edits, no API keys, no DNS changes.
 
-**[giftlinks.net](https://giftlinks.net)** — setup instructions, how it works, FAQ, and customization options.
+> **[giftlinks.net](https://giftlinks.net)** — setup instructions, how it works, FAQ, and customization options.
 
 ## Self-Hosting
 
