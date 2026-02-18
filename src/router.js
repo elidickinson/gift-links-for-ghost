@@ -31,6 +31,10 @@ export async function handleRequest(request, env, ctx) {
     });
   }
 
+  if (url.pathname === '/api/setup' && request.method === 'GET') {
+    return Response.redirect(new URL('/', request.url), 302);
+  }
+
   if (url.pathname === '/api/setup' && request.method === 'POST') {
     return handleSetup(request, env);
   }

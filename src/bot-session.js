@@ -38,7 +38,7 @@ export async function refreshSession(origin, botEmail, db = null) {
     body: JSON.stringify({ email: botEmail, emailType: 'signin' }),
   });
   if (!magicLinkResponse.ok) {
-    throw new Error(`Magic link request failed for ${origin}: HTTP ${magicLinkResponse.status}`);
+    throw new Error(`Magic link request failed for ${origin}: HTTP ${magicLinkResponse.status}. Is ${botEmail} a member of this site?`);
   }
 
   if (db) {

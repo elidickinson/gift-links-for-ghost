@@ -14,6 +14,9 @@ export function handleLanding({ error, success, status = 200 } = {}) {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': msg ? 'no-store' : 'public, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
     },
   });
 }
