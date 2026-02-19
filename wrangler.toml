@@ -16,7 +16,8 @@ database_name = "giftlinks"
 database_id = "b721666e-f92b-4125-9fe6-be88ba08fb76"
 
 [triggers]
-crons = ["0 4 * * *"]
+# Daily maintenance cron must also match check in src/index.js scheduled()
+crons = ["*/3 * * * *", "0 4 * * *"]
 
 [[routes]]
 pattern = "giftlinks.net/*"
@@ -31,6 +32,10 @@ enabled = true
 
 [observability.traces]
 enabled = true
+
+[placement]
+# TODO: temporary placement hint to try to avoid problematic EWR datacenter
+region = "aws:us-east-1"
 
 [vars]
 GIFT_TTL_DAYS = "14"
