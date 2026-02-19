@@ -43,3 +43,18 @@ MAX_REFRESH_FAILURES = "5"
 BOT_EMAIL = "bot@giftlinks.net"
 # ADMIN_PASSWORD, PUSHOVER_USER, PUSHOVER_TOKEN set via: wrangler secret put <NAME>
 # Pushover: create app at https://pushover.net/apps/build, user key at https://pushover.net
+
+# --- Staging environment ---
+# Deploy: wrangler deploy --env staging
+# Secrets: wrangler secret put ADMIN_PASSWORD --env staging
+[env.staging]
+vars = { GIFT_TTL_DAYS = "14", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@giftlinks.net" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "giftlinks-staging"
+database_id = "5a7d4684-977d-4ae8-9aac-7b6823e279ef"
+
+[[env.staging.routes]]
+pattern = "staging.giftlinks.net/*"
+zone_id = "e815e580ea88bb1434888185ea3e3768"

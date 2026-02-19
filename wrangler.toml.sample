@@ -1,0 +1,79 @@
+# Gift Links for Ghost — Cloudflare Worker configuration
+# Copy to wrangler.toml and fill in your values.
+
+name = "giftlinks"
+main = "src/index.js"
+compatibility_date = "2025-12-01"
+
+# HTML files imported as text modules (esbuild doesn't support ?raw imports)
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+# Static assets served from /public (client.js, privacy.html, etc.)
+[assets]
+directory = "./public"
+
+# D1 database — create with: wrangler d1 create giftlinks
+[[d1_databases]]
+binding = "DB"
+database_name = "giftlinks"
+database_id = "your-database-id"       # from `wrangler d1 create`
+
+# Cron triggers:
+#   */3 * * * *  — keepalive ping (prevents cold starts)
+#   0 4 * * *    — daily maintenance (session refresh, link expiry)
+# Must match the check in src/index.js scheduled()
+[triggers]
+crons = ["*/3 * * * *", "0 4 * * *"]
+
+# Custom domain routes — replace with your domain and zone ID
+# Zone ID is on the Cloudflare dashboard Overview tab for your domain
+[[routes]]
+pattern = "yourdomain.com/*"
+zone_id = "your-zone-id"
+
+[[routes]]
+pattern = "www.yourdomain.com/*"
+zone_id = "your-zone-id"
+
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
+
+# Optional: pin to a region if you hit datacenter issues
+# [placement]
+# region = "aws:us-east-1"
+
+[vars]
+GIFT_TTL_DAYS = "14"                   # gift links expire after this many days
+MAX_REFRESH_FAILURES = "5"             # disable session after N consecutive refresh failures
+BOT_EMAIL = "bot@yourdomain.com"       # email address for the bot member on your Ghost site
+
+# Secrets — set via CLI, not in this file:
+#   wrangler secret put ADMIN_PASSWORD
+#   wrangler secret put PUSHOVER_USER    (optional, for notifications)
+#   wrangler secret put PUSHOVER_TOKEN   (optional, for notifications)
+# Pushover: create app at https://pushover.net/apps/build
+
+# --- Staging environment (optional) ---
+# Create DB:  wrangler d1 create giftlinks-staging
+# Migrate:    wrangler d1 migrations apply giftlinks-staging --remote --env staging
+# Secrets:    wrangler secret put ADMIN_PASSWORD --env staging
+# Deploy:     wrangler deploy --env staging
+# DNS:        proxied A record for staging.yourdomain.com → 192.0.2.1
+#
+# [env.staging]
+# vars = { GIFT_TTL_DAYS = "14", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@yourdomain.com" }
+#
+# [[env.staging.d1_databases]]
+# binding = "DB"
+# database_name = "giftlinks-staging"
+# database_id = "your-staging-database-id"
+#
+# [[env.staging.routes]]
+# pattern = "staging.yourdomain.com/*"
+# zone_id = "your-zone-id"
