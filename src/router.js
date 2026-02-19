@@ -32,11 +32,12 @@ export async function handleRequest(request, env, ctx) {
   }
 
   if (url.pathname === '/api/setup' && request.method === 'GET') {
+    // Something went wrong if GET sent to /api/setup so redirect to home
     return Response.redirect(new URL('/', request.url), 302);
   }
 
   if (url.pathname === '/api/setup' && request.method === 'POST') {
-    return handleSetup(request, env);
+    return handleSetup(request, env, ctx);
   }
 
   if (url.pathname === '/api/gift-link/create' && request.method === 'POST') {

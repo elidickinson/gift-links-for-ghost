@@ -36,4 +36,5 @@ enabled = true
 GIFT_TTL_DAYS = "14"
 MAX_REFRESH_FAILURES = "5"
 BOT_EMAIL = "bot@giftlinks.net"
-# ADMIN_PASSWORD set via: wrangler secret put ADMIN_PASSWORD
+# ADMIN_PASSWORD, PUSHOVER_USER, PUSHOVER_TOKEN set via: wrangler secret put <NAME>
+# Pushover: create app at https://pushover.net/apps/build, user key at https://pushover.net
