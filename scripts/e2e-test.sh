@@ -27,6 +27,22 @@ PASS=0
 cleanup() { br stop > /dev/null 2>&1 || true; }
 trap cleanup EXIT
 
+# Poll browser DOM until a JS expression returns truthy (max 10s, checks every 200ms)
+wait_for() {
+  for i in $(seq 1 50); do
+    RESULT=$(br eval "$1" 2>&1)
+    if [ "$RESULT" = "true" ]; then return 0; fi
+    sleep 0.2
+  done
+  return 1
+}
+
+# Navigate and wait for a DOM condition instead of fixed sleep
+goto_wait() {
+  br goto "$1" > /dev/null 2>&1
+  wait_for "$2" || fail "Timed out waiting for: $2 (on $1)"
+}
+
 # Warn about stale processes that cause hangs and port conflicts
 STALE_WRANGLER=$(pgrep -fc "wrangler.*dev" 2>/dev/null || true)
 STALE_CHROME=$(pgrep -fc "headless_shell" 2>/dev/null || true)
@@ -78,6 +94,34 @@ ghost_admin_login() {
       -H "Origin: $GHOST_URL" \
       -d "{\"token\":\"$VERIFY_CODE\"}"
   fi
+}
+
+# Request magic link, poll Mailpit, follow in browser (reused 3 times)
+sign_in_paid_member() {
+  curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
+  INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
+  curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
+
+  MAGIC_LINK=""
+  for i in $(seq 1 20); do
+    sleep 0.2
+    MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
+      | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [ -n "$MESSAGE_ID" ]; then
+      MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
+        | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
+        | sed 's/\\u0026/\&/' | head -1)
+      break
+    fi
+  done
+  test -n "$MAGIC_LINK" || fail "No magic link found in Mailpit (message ID: ${MESSAGE_ID:-none})"
+  pass "Magic link received"
+
+  # Follow magic link — wait for redirect back to site root
+  br goto "$MAGIC_LINK" > /dev/null 2>&1
+  wait_for "!location.href.includes('/members?')" || fail "Magic link redirect timed out"
 }
 
 ghost_admin() {
@@ -156,55 +200,30 @@ rm -f "$TMPFILE"
 assert_contains "$SIMULATE_RESULT" '"ok":true' "Bot session stored"
 
 # -- 4. Start browser, sign in as paid member --
+# Sections 4–7 use one browser session (paid member).
+# Section 8 restarts browser to clear cookies for anonymous redemption.
 
 echo "==> Signing in as paid member"
 br stop > /dev/null 2>&1 || true
 br start --headless > /dev/null 2>&1
-
-# Clear Mailpit, request magic link for paid member
-curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
-INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
-curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
-
-# Poll Mailpit for magic link (parsed JSON — raw body is base64-encoded)
-MAGIC_LINK=""
-for i in $(seq 1 10); do
-  sleep 0.5
-  MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
-    | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
-  if [ -n "$MESSAGE_ID" ]; then
-    MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
-      | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
-      | sed 's/\\u0026/\&/' | head -1)
-    break
-  fi
-done
-test -n "$MAGIC_LINK" || fail "No magic link found in Mailpit (message ID: ${MESSAGE_ID:-none})"
-pass "Magic link received"
-
-# Follow magic link in browser to get session cookies
-br goto "$MAGIC_LINK" > /dev/null 2>&1
-sleep 2
+sign_in_paid_member
 
 # -- 5. Visit paywalled post as paid member --
 
 echo "==> Visiting paywalled post as paid member"
-br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
-sleep 3
+goto_wait "${GHOST_URL}${POST_PATH}" "document.querySelector('.gl4g-button') !== null"
 
-HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
-assert_contains "$HAS_BUTTON" "true" "Gift button visible"
+HAS_BUTTON="true"
+pass "Gift button visible"
 
 # -- 6. Create gift link --
 
 echo "==> Creating gift link"
 br click ".gl4g-button" > /dev/null 2>&1
-sleep 2
+wait_for "location.href.includes('gift=')" || fail "Gift token never appeared in URL"
 
 CURRENT_URL=$(br eval "location.href" 2>&1)
-assert_contains "$CURRENT_URL" "gift=" "Gift token in URL"
+pass "Gift token in URL"
 GIFT_URL=$(echo "$CURRENT_URL" | grep -o 'http[^ ]*')
 echo "    $GIFT_URL"
 
@@ -221,22 +240,19 @@ REDEEM_BODY=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
 assert_contains "$REDEEM_BODY" "premium content behind the paywall" "API returns premium content"
 
 # -- 8. Redeem in browser as anonymous visitor --
+# Must restart browser — httpOnly cookies can't be cleared via JS.
+# Sections 8–10 use this anonymous session.
 
 echo "==> Redeeming gift link in browser"
-# Restart browser to clear httpOnly session cookies
 br stop > /dev/null 2>&1
 br start --headless > /dev/null 2>&1
 
-br goto "$GIFT_URL" > /dev/null 2>&1
-sleep 3
+goto_wait "$GIFT_URL" "document.querySelector('.gl4g-bar') !== null"
+pass "Gift banner visible"
 
-HAS_BAR=$(br eval "document.querySelector('.gl4g-bar') !== null" 2>&1)
-assert_contains "$HAS_BAR" "true" "Gift banner visible"
-
-# Paywall gate should be gone
-if echo "$TREE" | grep -q "gh-post-upgrade-cta"; then
-  fail "Paywall gate still present"
-fi
+# Paywall gate should be gone (gift link unlocked the content)
+HAS_GATE=$(br eval "document.querySelector('.gh-post-upgrade-cta') !== null" 2>&1)
+if [ "$HAS_GATE" = "true" ]; then fail "Paywall gate still present"; fi
 pass "Paywall gate removed"
 
 # -- 9. Forged JWT rejected --
@@ -246,26 +262,27 @@ FORGED_HEADER=$(printf '{"alg":"RS512","typ":"JWT"}' | base64 | tr -d '=')
 FORGED_PAYLOAD=$(printf '{"sub":"forger@evil.com","iss":"%s/members/api","aud":"%s/members/api"}' "$GHOST_URL" "$GHOST_URL" | base64 | tr -d '=')
 FORGED_JWT="${FORGED_HEADER}.${FORGED_PAYLOAD}.fake-signature"
 
-FORGED_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WORKER_URL/api/gift-link/create" \
+FORGED_RESP=$(mktemp)
+FORGED_STATUS=$(curl -s -o "$FORGED_RESP" -w "%{http_code}" -X POST "$WORKER_URL/api/gift-link/create" \
   -H "Content-Type: application/json" \
   -d "{\"jwt\":\"$FORGED_JWT\",\"url\":\"${GHOST_URL}${POST_PATH}\",\"gifter_name\":\"Forger\"}")
+FORGED_BODY=$(cat "$FORGED_RESP"); rm -f "$FORGED_RESP"
 if [ "$FORGED_STATUS" = "401" ]; then pass "Forged JWT returns 401"; else fail "Forged JWT returns 401 (got: $FORGED_STATUS)"; fi
-
-FORGED_BODY=$(curl -s -X POST "$WORKER_URL/api/gift-link/create" \
-  -H "Content-Type: application/json" \
-  -d "{\"jwt\":\"$FORGED_JWT\",\"url\":\"${GHOST_URL}${POST_PATH}\",\"gifter_name\":\"Forger\"}")
 assert_contains "$FORGED_BODY" '"invalid_token"' "Forged JWT error body contains invalid_token"
 
 # -- 10. Bogus token shows normal paywall --
 
 echo "==> Visiting with bogus gift token"
-br goto "${GHOST_URL}${POST_PATH}?gift=bogus-token" > /dev/null 2>&1
-sleep 3
+# Wait for paywall gate to appear (proves bogus token didn't unlock content)
+goto_wait "${GHOST_URL}${POST_PATH}?gift=bogus-token" "document.querySelector('.gh-post-upgrade-cta, .gh-cta, .single-cta, .content-cta, .post-sneak-peek') !== null"
 
 TREE=$(br view-tree 2>&1)
 assert_page "$TREE" "for paying subscribers only" "Paywall gate still shown for bogus token"
 
 # -- 11. Theme-placed button --
+# Needs admin login to modify code injection settings.
+# Fresh browser + sign-in because section 10 was anonymous.
+# Sections 11–13 share this paid member session.
 
 echo "==> Testing theme-placed button"
 
@@ -285,32 +302,10 @@ ghost_admin PUT "settings/" -d "$INJECT_JSON" > /dev/null
 # Sign in as paid member (fresh browser)
 br stop > /dev/null 2>&1 || true
 br start --headless > /dev/null 2>&1
-
-curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
-INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
-curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
-
-MAGIC_LINK=""
-for i in $(seq 1 10); do
-  sleep 0.5
-  MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
-    | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
-  if [ -n "$MESSAGE_ID" ]; then
-    MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
-      | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
-      | sed 's/\\u0026/\&/' | head -1)
-    break
-  fi
-done
-test -n "$MAGIC_LINK" || fail "No magic link for theme button test"
-br goto "$MAGIC_LINK" > /dev/null 2>&1
-sleep 2
+sign_in_paid_member
 
 # Visit paywalled post — client.js should find theme button, not create floating one
-br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
-sleep 3
+goto_wait "${GHOST_URL}${POST_PATH}" "document.querySelector('.gl4g-button') !== null"
 
 # Wrapper should exist and be unhidden (display reset to empty string, not "none")
 WRAPPER_HIDDEN=$(br eval "document.querySelector('.gl4g-button-wrapper')?.style.display === 'none'" 2>&1)
@@ -322,21 +317,12 @@ assert_contains "$BUTTON_COUNT" "1" "Single theme button (no duplicate)"
 
 # Click handler should work (creates gift link, shows confirmation bar)
 br click ".gl4g-button" > /dev/null 2>&1
-sleep 2
-HAS_CONFIRM_BAR=$(br eval "document.querySelector('.gl4g-bar') !== null" 2>&1)
-assert_contains "$HAS_CONFIRM_BAR" "true" "Theme button click creates gift link"
-
-# Restore original code injection (remove theme button)
-RESTORE_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
-import json, os
-worker = os.environ["WORKER_URL"]
-script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' defer></script>"
-print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script}]}))
-PYEOF
-)
-ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null
+wait_for "document.querySelector('.gl4g-bar') !== null" || fail "Theme button click: no confirmation bar"
+pass "Theme button click creates gift link"
 
 # -- 12. Configurable content selector + redemption limit --
+# Reuses paid member browser session from section 11 (no restart needed).
+# Only changes code injection via admin API, then reloads the page.
 
 echo "==> Testing data-gl4g-content and data-gl4g-max-views config"
 
@@ -350,44 +336,16 @@ PYEOF
 )
 ghost_admin PUT "settings/" -d "$CONTENT_JSON" > /dev/null
 
-# Fresh browser, sign in as paid member
-br stop > /dev/null 2>&1 || true
-br start --headless > /dev/null 2>&1
+# Reload post with new code injection (still signed in from section 11)
+goto_wait "${GHOST_URL}${POST_PATH}" "document.querySelector('.gl4g-button') !== null"
 
-curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
-scripts/reset-ratelimit.sh
-INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
-curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
-
-MAGIC_LINK=""
-for i in $(seq 1 10); do
-  sleep 0.5
-  MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
-    | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
-  if [ -n "$MESSAGE_ID" ]; then
-    MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
-      | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
-      | sed 's/\\u0026/\&/' | head -1)
-    break
-  fi
-done
-test -n "$MAGIC_LINK" || fail "No magic link for content selector test"
-br goto "$MAGIC_LINK" > /dev/null 2>&1
-sleep 2
-
-br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
-sleep 3
-
-HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
-assert_contains "$HAS_BUTTON" "true" "Gift button visible with data-gl4g-content"
+pass "Gift button visible with data-gl4g-content"
 
 # -- 12b. Custom selector passed through to API for content extraction --
 # Create a gift link, then redeem via API with content_selector to verify backend uses it
 
 br click ".gl4g-button" > /dev/null 2>&1
-sleep 2
+wait_for "location.href.includes('gift=')" || fail "Gift token never appeared (content selector)"
 
 SELECTOR_URL=$(br eval "location.href" 2>&1)
 SELECTOR_TOKEN=$(echo "$SELECTOR_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
@@ -403,14 +361,11 @@ assert_contains "$SELECTOR_REDEEM" "premium content behind the paywall" "Custom 
 # The injected script has data-gl4g-max-views="2", so new gift links get max_views=2.
 # Visit post again, create a new gift link, then verify the limit via API.
 
-br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
-sleep 3
-
-HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
-assert_contains "$HAS_BUTTON" "true" "Gift button visible with max-views"
+goto_wait "${GHOST_URL}${POST_PATH}" "document.querySelector('.gl4g-button') !== null"
+pass "Gift button visible with max-views"
 
 br click ".gl4g-button" > /dev/null 2>&1
-sleep 2
+wait_for "location.href.includes('gift=')" || fail "Gift token never appeared (max-views)"
 
 MAXVIEWS_URL=$(br eval "location.href" 2>&1)
 MAXVIEWS_TOKEN=$(echo "$MAXVIEWS_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
@@ -435,6 +390,13 @@ REDEEM3_BODY=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
 assert_contains "$REDEEM3_BODY" '"redemption_limit"' "Max-views: third redemption rejected with redemption_limit"
 
 # Restore original code injection
+RESTORE_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
+import json, os
+worker = os.environ["WORKER_URL"]
+script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' defer></script>"
+print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script}]}))
+PYEOF
+)
 ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null
 
 # -- 13. Nested sections (the bug htmlparser2 fixes) --
@@ -450,15 +412,12 @@ NESTED_POST_ID=$(ghost_admin POST "posts/" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['posts'][0]['id'])")
 test -n "$NESTED_POST_ID" || fail "Could not create nested section test post"
 
-# Visit as paid member (still signed in from section 12), create gift link
-br goto "${GHOST_URL}/nested-section-test/" > /dev/null 2>&1
-sleep 3
-
-HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
-assert_contains "$HAS_BUTTON" "true" "Gift button visible on nested post"
+# Still signed in from section 11 — create gift link on the new post
+goto_wait "${GHOST_URL}/nested-section-test/" "document.querySelector('.gl4g-button') !== null"
+pass "Gift button visible on nested post"
 
 br click ".gl4g-button" > /dev/null 2>&1
-sleep 2
+wait_for "location.href.includes('gift=')" || fail "Gift token never appeared (nested)"
 
 NESTED_URL=$(br eval "location.href" 2>&1)
 NESTED_TOKEN=$(echo "$NESTED_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
