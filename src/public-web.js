@@ -5,11 +5,14 @@ import { sendPushover } from './pushover.js';
 
 const SETUP_MSG_PLACEHOLDER = '<!--SETUP_MSG-->';
 
-export function handleLanding({ error, success, status = 200 } = {}) {
+export function handleLanding({ env, error, success, status = 200 } = {}) {
   let msg = '';
   if (error) msg = `<p class="setup-msg setup-error">${error}</p>`;
   if (success) msg = `<p class="setup-msg setup-ok">${success}</p>`;
-  const html = landingHtml.replace(SETUP_MSG_PLACEHOLDER, msg);
+  const ttlDays = env?.DEFAULT_TTL_DAYS || '14';
+  const html = landingHtml
+    .replace(SETUP_MSG_PLACEHOLDER, msg)
+    .replace(/<!--DEFAULT_TTL_DAYS-->/g, ttlDays);
   return new Response(html, {
     status,
     headers: {
@@ -31,17 +34,17 @@ export async function handleSetup(request, env, ctx) {
   try {
     origin = new URL(url).origin;
   } catch {
-    return handleLanding({ error: 'Invalid URL.', status: 400 });
+    return handleLanding({ env, error: 'Invalid URL.', status: 400 });
   }
 
   try {
     await refreshSession(origin, env.BOT_EMAIL);
   } catch (error) {
     log.warn('setup: failed for', origin, error.message);
-    return handleLanding({ error: error.message, status: 502 });
+    return handleLanding({ env, error: error.message, status: 502 });
   }
 
   log.info('setup: magic link requested for', origin);
   ctx.waitUntil(sendPushover(env, `New Ghost site setup: ${origin}`));
-  return handleLanding({ success: 'Request sent. Your Ghost site should be connected in a few seconds.' });
+  return handleLanding({ env, success: 'Request sent. Your Ghost site should be connected in a few seconds.' });
 }

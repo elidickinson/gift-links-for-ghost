@@ -78,8 +78,8 @@ describe('session refresh', () => {
     // Insert an expired gift link that should still get cleaned up
     const expiredTimestamp = Date.now() - 30 * 24 * 60 * 60 * 1000;
     await env.DB.prepare(
-      'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind('should-be-cleaned', 'https://example.com/post/', 'a@b.com', 'Alice', expiredTimestamp).run();
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('should-be-cleaned', 'https://example.com/post/', 'a@b.com', 'Alice', 14, expiredTimestamp).run();
 
     // broken.example.com returns 500 on JWKS and integrity token
     const brokenOrigin = fetchMock.get('https://broken.example.com');
@@ -163,13 +163,13 @@ describe('session refresh', () => {
   it('soft-deletes expired gift links and blanks PII', async () => {
     const expiredTimestamp = Date.now() - 30 * 24 * 60 * 60 * 1000;
     await env.DB.prepare(
-      'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind('expired-token', 'https://example.com/post/', 'a@b.com', 'Alice', expiredTimestamp).run();
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('expired-token', 'https://example.com/post/', 'a@b.com', 'Alice', 14, expiredTimestamp).run();
 
     const freshTimestamp = Date.now();
     await env.DB.prepare(
-      'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind('fresh-token', 'https://example.com/post/', 'b@c.com', 'Bob', freshTimestamp).run();
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('fresh-token', 'https://example.com/post/', 'b@c.com', 'Bob', 14, freshTimestamp).run();
 
     await handleScheduled(env);
 
@@ -183,35 +183,36 @@ describe('session refresh', () => {
     expect(fresh.gifter_name).toBe('Bob');
   });
 
-  it('uses per-link ttl_days over global DEFAULT_TTL_DAYS', async () => {
-    // Link with 7-day TTL created 10 days ago — should be expired
+  it('uses per-link ttl_days to determine expiry', async () => {
     const tenDaysAgo = Date.now() - 10 * 86400000;
+
+    // 7-day TTL created 10 days ago — should be expired
     await env.DB.prepare(
       'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind('short-ttl', 'https://example.com/post/', 'a@b.com', 'Alice', 7, tenDaysAgo).run();
 
-    // Link with 30-day TTL created 10 days ago — should survive
+    // 30-day TTL created 10 days ago — should survive
     await env.DB.prepare(
       'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind('long-ttl', 'https://example.com/post/', 'b@c.com', 'Bob', 30, tenDaysAgo).run();
 
-    // Link with no per-link TTL created 10 days ago — uses DEFAULT_TTL_DAYS (14), should survive
+    // ttl_days=0 (never-expires) created 10 days ago — should survive
     await env.DB.prepare(
-      'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind('default-ttl', 'https://example.com/post/', 'c@d.com', 'Charlie', tenDaysAgo).run();
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('no-expiry', 'https://example.com/post/', 'c@d.com', 'Charlie', 0, tenDaysAgo).run();
 
     await handleScheduled(env);
 
     const short = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('short-ttl').first();
     const long = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('long-ttl').first();
-    const def = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('default-ttl').first();
+    const noExpiry = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('no-expiry').first();
 
     expect(short.expired_at).not.toBeNull();
     expect(short.email).toBe('');
     expect(long.expired_at).toBeNull();
     expect(long.email).toBe('b@c.com');
-    expect(def.expired_at).toBeNull();
-    expect(def.email).toBe('c@d.com');
+    expect(noExpiry.expired_at).toBeNull();
+    expect(noExpiry.email).toBe('c@d.com');
   });
 
   it('reinstated gift link with blanked PII still redeems', async () => {

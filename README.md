@@ -35,7 +35,7 @@ Update `wrangler.toml` vars:
 | Variable | Default | Description |
 |---|---|---|
 | `BOT_EMAIL` | — | Email address of the bot member in Ghost |
-| `DEFAULT_TTL_DAYS` | `14` | How long gift links remain valid (days) |
+| `DEFAULT_TTL_DAYS` | `14` | How long gift links remain valid in days (0 = never expires) |
 | `DEFAULT_MAX_VIEWS` | `0` | Max redemptions per link (0 = unlimited) |
 
 ### 3. Deploy

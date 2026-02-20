@@ -541,7 +541,7 @@ describe('API', () => {
     expect(createResponse.status).toBe(200);
     const { token } = await createResponse.json();
     const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
-    expect(row.max_views).toBeNull();
+    expect(row.max_views).toBe(0);
   });
 
   it('falls back to DEFAULT_MAX_VIEWS when max_views not sent', async () => {
@@ -562,7 +562,7 @@ describe('API', () => {
     expect(createResponse.status).toBe(200);
     const { token } = await createResponse.json();
     const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
-    expect(row.max_views).toBeNull();
+    expect(row.max_views).toBe(0);
   });
 
   it('ignores invalid max_views values on creation', async () => {
@@ -583,7 +583,7 @@ describe('API', () => {
     expect(createResponse.status).toBe(200);
     const { token } = await createResponse.json();
     const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
-    expect(row.max_views).toBeNull();
+    expect(row.max_views).toBe(0);
   });
 
   it('stores ttl_days on gift link creation', async () => {
@@ -648,6 +648,27 @@ describe('API', () => {
     const row = await env.DB.prepare('SELECT ttl_days FROM gift_links WHERE token = ?').bind(token).first();
     // Invalid value falls back to DEFAULT_TTL_DAYS (14)
     expect(row.ttl_days).toBe(14);
+  });
+
+  it('treats ttl_days 0 as never-expires', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        ttl_days: 0,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT ttl_days FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.ttl_days).toBe(0);
   });
 
   it('records null referer for invalid referer header', async () => {

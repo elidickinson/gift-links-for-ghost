@@ -61,7 +61,7 @@ export async function handleFetchContent(request, env, ctx) {
     return Response.json({ error: 'invalid' }, { status: 400, headers: corsHeaders() });
   }
 
-  if (metadata.max_views) {
+  if (metadata.max_views > 0) {
     const { count } = await env.DB.prepare('SELECT COUNT(*) as count FROM link_views WHERE token = ?').bind(token).first();
     if (count >= metadata.max_views) {
       log.debug('redeem: redemption limit reached', { token: token.slice(0, 6), max_views: metadata.max_views, count });

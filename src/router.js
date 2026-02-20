@@ -22,7 +22,7 @@ export async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
   if (url.pathname === '/' && request.method === 'GET') {
-    return handleLanding();
+    return handleLanding({ env });
   }
 
   if (url.pathname === '/robots.txt' && request.method === 'GET') {

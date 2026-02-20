@@ -37,21 +37,20 @@ export async function handleCreate(request, env) {
   });
 }
 
-// Returns a positive integer for a view limit, or null for unlimited.
-// 0 explicitly means unlimited. Missing/invalid falls back to the env default.
+// Returns a non-negative integer: positive = view limit, 0 = unlimited.
+// Missing/invalid falls back to the env default.
 export function parseMaxViews(value, envDefault) {
   const v = typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
   const effective = v !== undefined ? v : parseInt(envDefault, 10) || 0;
-  return effective > 0 ? effective : null;
+  return effective;
 }
 
-// Returns a positive integer for TTL days, or null to use the global default at expiry time.
-// Valid positive int → store it; 0/missing/invalid → null (use global default).
+// Returns a non-negative integer: positive = TTL in days, 0 = never expires.
+// Missing/invalid falls back to the env default.
 export function parseTtlDays(value, envDefault) {
-  const v = typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
-  if (v !== undefined) return v;
-  const fallback = parseInt(envDefault, 10);
-  return fallback > 0 ? fallback : null;
+  const v = typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+  const effective = v !== undefined ? v : parseInt(envDefault, 10) || 0;
+  return effective;
 }
 
 async function verifyIdentityToken(token, origin, env) {

@@ -8,7 +8,7 @@ export async function createGiftToken(env, { url, email, gifter_name, max_views,
 
   await env.DB.prepare(
     'INSERT INTO gift_links (token, url, email, gifter_name, max_views, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(token, url, email, gifter_name, max_views ?? null, ttl_days ?? null, Date.now()).run();
+  ).bind(token, url, email, gifter_name, max_views, ttl_days, Date.now()).run();
 
   return token;
 }
