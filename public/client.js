@@ -16,7 +16,7 @@
     creating_text: 'Creating link\u2026',
     loading_text: 'Loading gifted article\u2026',
     expired_text: 'This gift link has expired.',
-    error_text: 'Something went wrong. Please try again.',
+    error_text: 'There was a problem loading your gift link. Reload the page to try again.',
     created_text: 'Gift link created! Copy it below, or just share this page\u2019s URL.',
     gift_banner: 'This post was gifted to you by a paying member. <a href="#/portal/signup">Subscribe</a> for full access to the site.',
     copy_text: 'Copy',
@@ -154,13 +154,12 @@
       } else {
         console.error(`[gl4g] Redeem failed: ${response.status}`);
         loadingBar.remove();
-        if (response.status === 410) {
-          showBar(container, S.expired_text, 'error');
-        }
+        showBar(container, response.status === 410 ? S.expired_text : S.error_text, 'error');
       }
     } catch (error) {
       console.error('[gl4g] Redeem failed:', error);
       loadingBar.remove();
+      showBar(container, S.error_text, 'error');
     }
   }
 
