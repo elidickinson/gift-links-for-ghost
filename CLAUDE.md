@@ -28,6 +28,7 @@ Local Ghost via `docker compose -f docker-compose.dev.yml up -d` — see README 
 
 - Ghost source code: `Ghost/` dir (full monorepo, has its own `CLAUDE.md`)
 - CSS class prefix: `gl4g-` (defined as constant in `public/client.js`)
+- Theme button: if `.gl4g-button` exists in DOM, client.js uses it instead of creating a floating button; `.gl4g-button-wrapper` parent gets unhidden; auto-created floating button gets `gl4g-button--float`
 - `client.js` and `privacy.html` are served as Cloudflare static assets from `public/`
 - Worker URL: `https://giftlinks.net`
 - Admin: HTTP Basic Auth at `/admin`, user=`admin`, `ADMIN_PASSWORD` is a wrangler secret

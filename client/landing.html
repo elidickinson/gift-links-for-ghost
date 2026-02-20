@@ -135,13 +135,28 @@ window.gl4g_strings = {
   <tr><td><code>creating_text</code></td><td>Creating link&hellip;</td></tr>
   <tr><td><code>loading_text</code></td><td>Loading gifted article&hellip;</td></tr>
   <tr><td><code>expired_text</code></td><td>This gift link has expired.</td></tr>
-  <tr><td><code>error_text</code></td><td>Something went wrong. Please try again.</td></tr>
+  <tr><td><code>error_text</code></td><td>There was a problem loading your gift link. Reload the page to try again.</td></tr>
   <tr><td><code>created_text</code></td><td>Gift link created! Copy it below&hellip;</td></tr>
   <tr><td><code>gift_banner</code></td><td>You&rsquo;re accessing a gift link. Subscribe&hellip; (HTML ok, <code>{name}</code> placeholder)</td></tr>
   <tr><td><code>copy_text</code></td><td>Copy</td></tr>
   <tr><td><code>copied_text</code></td><td>Copied!</td></tr>
 </table>
 <p><strong>CSS:</strong> To customize styles, target the <code>.gl4g-</code> prefixed classes in Code Injection. For example, use <code><strong>.gh-content .gl4g-bar</strong></code> for the banner and <code><strong>.gl4g-button</strong></code> for the gift button.</p>
+<p>Set any string to an empty value (<code>''</code>) to hide that element entirely.</p>
+</details>
+
+<details>
+<summary>Custom button placement (for theme developers)</summary>
+<p>By default, the gift button is a floating element in the bottom-left corner. Theme developers can place their own button anywhere in the template instead. Add an element with class <code>gl4g-button</code> &mdash; the script will find it, attach the click handler, and skip creating the floating button.</p>
+<p>If your theme has access to <code>@member.paid</code>, Ghost handles visibility for you:</p>
+<pre style="text-align: left;">{{#if @member.paid}}
+  &lt;a href="#" class="gl4g-button gh-btn"&gt;Gift this article&lt;/a&gt;
+{{/if}}</pre>
+<p>If your button is always in the HTML (e.g. in Code Injection, which doesn&rsquo;t support Handlebars), wrap it so it stays hidden until the script activates it:</p>
+<pre style="text-align: left;">&lt;div class="gl4g-button-wrapper" style="display:none"&gt;
+  &lt;a href="#" class="gl4g-button gh-btn"&gt;Gift this article&lt;/a&gt;
+&lt;/div&gt;</pre>
+<p>The script only looks for <code>.gl4g-button</code>. You control the element type, text, and styling. If a <code>.gl4g-button-wrapper</code> parent exists, the script unhides it when the button is activated.</p>
 </details>
 
 </main>
