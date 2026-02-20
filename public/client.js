@@ -10,6 +10,7 @@
   // Override with data-gl4g-api attribute for self-hosting: <script src="..." data-gl4g-api="https://your-worker.example.com">
   const API_BASE = document.querySelector('script[data-gl4g-api]')?.dataset.gl4gApi || 'https://giftlinks.net';
   const CONTENT_SELECTOR = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent || null;
+  const MAX_VIEWS = parseInt(document.querySelector('script[data-gl4g-max-views]')?.dataset.gl4gMaxViews, 10) || null;
 
   // Paywall gate detection with fallback chain
   function findPaywallGate() {
@@ -51,6 +52,7 @@
     creating_text: 'Creating link\u2026',
     loading_text: 'Loading gifted article\u2026',
     expired_text: 'This gift link has expired.',
+    limit_text: 'This gift link has reached its view limit.',
     error_text: 'There was a problem loading your gift link. Reload the page to try again.',
     created_text: 'Gift link created! Copy it below, or just share this page\u2019s URL.',
     gift_banner: 'This post was gifted to you by a paying member. <a href="#/portal/signup">Subscribe</a> for full access to the site.',
@@ -195,9 +197,11 @@
         injectBanner(container, gifter_name);
         history.replaceState(null, '', removeQueryParam(location.href, 'gift'));
       } else {
-        console.error(`[gl4g] Redeem failed: ${response.status}`);
+        const { error } = await response.json();
+        console.error(`[gl4g] Redeem failed: ${response.status} ${error}`);
         loadingBar.remove();
-        showBar(container, response.status === 410 ? S.expired_text : S.error_text, 'error');
+        const msg = error === 'expired' ? S.expired_text : error === 'redemption_limit' ? S.limit_text : S.error_text;
+        showBar(container, msg, 'error');
       }
     } catch (error) {
       console.error('[gl4g] Redeem failed:', error);
@@ -286,14 +290,16 @@
       const sessionResponse = await fetch('/members/api/session', { credentials: 'same-origin' });
       const jwt = await sessionResponse.text();
 
+      const createBody = {
+        jwt,
+        url: location.origin + location.pathname,
+        gifter_name: getMemberName(jwt),
+      };
+      if (MAX_VIEWS) createBody.max_views = MAX_VIEWS;
       const response = await retryFetch(`${API_BASE}/api/gift-link/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jwt,
-          url: location.origin + location.pathname,
-          gifter_name: getMemberName(jwt),
-        }),
+        body: JSON.stringify(createBody),
       });
 
       if (!response.ok) throw new Error('create failed');

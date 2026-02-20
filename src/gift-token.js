@@ -1,4 +1,4 @@
-export async function createGiftToken(env, { url, email, gifter_name }) {
+export async function createGiftToken(env, { url, email, gifter_name, max_views }) {
   const bytes = new Uint8Array(10);
   crypto.getRandomValues(bytes);
   const token = btoa(String.fromCharCode(...bytes))
@@ -7,8 +7,8 @@ export async function createGiftToken(env, { url, email, gifter_name }) {
     .replace(/=/g, '');
 
   await env.DB.prepare(
-    'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).bind(token, url, email, gifter_name, Date.now()).run();
+    'INSERT INTO gift_links (token, url, email, gifter_name, max_views, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(token, url, email, gifter_name, max_views ?? null, Date.now()).run();
 
   return token;
 }

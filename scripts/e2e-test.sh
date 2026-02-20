@@ -336,15 +336,15 @@ PYEOF
 )
 ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null
 
-# -- 12. Configurable content selector (data-gl4g-content) --
+# -- 12. Configurable content selector + redemption limit --
 
-echo "==> Testing data-gl4g-content config"
+echo "==> Testing data-gl4g-content and data-gl4g-max-views config"
 
-# Inject script with explicit content selector pointing at Ghost default
+# Inject script with content selector AND max-views limit (tests both data attributes)
 CONTENT_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
 import json, os
 worker = os.environ["WORKER_URL"]
-script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' data-gl4g-content='section.gh-content' defer></script>"
+script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' data-gl4g-content='section.gh-content' data-gl4g-max-views='2' defer></script>"
 print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script}]}))
 PYEOF
 )
@@ -398,6 +398,41 @@ SELECTOR_REDEEM=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
   -H "Content-Type: application/json" \
   -d "{\"token\":\"$SELECTOR_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\",\"content_selector\":\"section.gh-content\"}")
 assert_contains "$SELECTOR_REDEEM" "premium content behind the paywall" "Custom selector extracts content via API"
+
+# -- 12c. Redemption limit (data-gl4g-max-views) --
+# The injected script has data-gl4g-max-views="2", so new gift links get max_views=2.
+# Visit post again, create a new gift link, then verify the limit via API.
+
+br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
+sleep 3
+
+HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
+assert_contains "$HAS_BUTTON" "true" "Gift button visible with max-views"
+
+br click ".gl4g-button" > /dev/null 2>&1
+sleep 2
+
+MAXVIEWS_URL=$(br eval "location.href" 2>&1)
+MAXVIEWS_TOKEN=$(echo "$MAXVIEWS_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
+test -n "$MAXVIEWS_TOKEN" || fail "No gift token from max-views test"
+
+# First redemption — should succeed
+REDEEM1=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WORKER_URL/api/gift-link/fetch-content" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$MAXVIEWS_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\"}")
+if [ "$REDEEM1" = "200" ]; then pass "Max-views: first redemption succeeds (200)"; else fail "Max-views: first redemption (got: $REDEEM1)"; fi
+
+# Second redemption — should succeed (2 of 2)
+REDEEM2=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$WORKER_URL/api/gift-link/fetch-content" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$MAXVIEWS_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\"}")
+if [ "$REDEEM2" = "200" ]; then pass "Max-views: second redemption succeeds (200)"; else fail "Max-views: second redemption (got: $REDEEM2)"; fi
+
+# Third redemption — should be rejected (over limit)
+REDEEM3_BODY=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$MAXVIEWS_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\"}")
+assert_contains "$REDEEM3_BODY" '"redemption_limit"' "Max-views: third redemption rejected with redemption_limit"
 
 # Restore original code injection
 ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null

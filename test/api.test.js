@@ -437,6 +437,117 @@ describe('API', () => {
     expect(await redeemResponse.json()).toEqual({ error: 'fetch_failed' });
   });
 
+  it('enforces max_views redemption limit', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        max_views: 2,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+
+    const pageHtml = '<html><body><section class="gh-content"><p>Full article</p></section></body></html>';
+
+    // First redemption — should succeed
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, pageHtml, { headers: { 'Content-Type': 'text/html' } });
+
+    const r1 = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+    expect(r1.status).toBe(200);
+
+    // Second redemption — should succeed (view count = 1, limit = 2)
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, pageHtml, { headers: { 'Content-Type': 'text/html' } });
+
+    const r2 = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+    expect(r2.status).toBe(200);
+
+    // Third redemption — should be rejected (view count = 2, limit = 2)
+    const r3 = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+    expect(r3.status).toBe(410);
+    expect(await r3.json()).toEqual({ error: 'redemption_limit' });
+  });
+
+  it('allows unlimited redemptions when max_views is not set', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+      }),
+    });
+
+    const { token } = await createResponse.json();
+    const pageHtml = '<html><body><section class="gh-content"><p>Full article</p></section></body></html>';
+
+    // Redeem 3 times — all should succeed
+    for (let i = 0; i < 3; i++) {
+      fetchMock.get('https://www.example.com')
+        .intercept({ method: 'GET', path: '/my-post/' })
+        .reply(200, pageHtml, { headers: { 'Content-Type': 'text/html' } });
+
+      const r = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+      });
+      expect(r.status).toBe(200);
+    }
+  });
+
+  it('ignores invalid max_views values on creation', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+
+    // Non-integer max_views should be treated as null (unlimited)
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        max_views: -5,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+
+    // Verify it was stored as null
+    const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.max_views).toBeNull();
+  });
+
   it('records null referer for invalid referer header', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 

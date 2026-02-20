@@ -1,0 +1,1 @@
+ALTER TABLE gift_links ADD COLUMN max_views INTEGER DEFAULT NULL;

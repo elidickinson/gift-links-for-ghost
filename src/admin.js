@@ -22,7 +22,7 @@ export async function handleAdmin(env) {
     env.DB.prepare(`SELECT origin, cookies, created_at, jwks, last_magic_link_at, refresh_failures
       FROM sessions ORDER BY created_at DESC`).all(),
     env.DB.prepare(`
-      SELECT gl.token, gl.url, gl.gifter_name, gl.email, gl.created_at, gl.expired_at,
+      SELECT gl.token, gl.url, gl.gifter_name, gl.email, gl.created_at, gl.expired_at, gl.max_views,
              COUNT(lv.viewed_at) as views
       FROM gift_links gl
       LEFT JOIN link_views lv ON lv.token = gl.token
@@ -151,17 +151,21 @@ function renderPage(data) {
 
 <h2>Recent Gift Links</h2>
 <table>
-  <tr><th>Token</th><th>Post</th><th>Gifter</th><th>Created</th><th>Views</th></tr>
+  <tr><th>Token</th><th>Post</th><th>Gifter</th><th>Created</th><th>Views</th><th>Limit</th></tr>
   ${data.recentLinks.map(l => {
     // const path = l.url ? postPath(l.url) : '';
     const when = timeAgo(data.now - l.created_at);
     const expiredClass = l.expired_at ? 'expired' : '';
+    const limitDisplay = l.max_views
+      ? (l.views >= l.max_views ? `<span class="muted">${l.views}&nbsp;/&nbsp;${l.max_views}</span>` : `${l.views}&nbsp;/&nbsp;${l.max_views}`)
+      : '<span class="muted">\u221e</span>';
     return `<tr>
     <td class="mono"><a href="${l.url}?gift=${escapeHtml(l.token)}" target="_blank" rel="noreferrer noopener" >${escapeHtml(l.token.slice(0, 8))}\u2026</a></td>
     <td class="mono post-path ${expiredClass}" title="${escapeHtml(l.url || '')}">${escapeHtml(l.url) || '<span class="muted">\u2014</span>'}</td>
     <td>${escapeHtml(l.gifter_name || '\u2014')}${l.email ? `<div class="detail">${escapeHtml(l.email)}</div>` : ''}</td>
     <td title="${formatDate(l.created_at)}">${when}</td>
     <td>${l.views}</td>
+    <td>${limitDisplay}</td>
   </tr>`;
   }).join('')}
 </table>

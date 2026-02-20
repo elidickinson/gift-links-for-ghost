@@ -5,7 +5,7 @@ import { corsHeaders } from './router.js';
 import { log } from './log.js';
 
 export async function handleCreate(request, env) {
-  const { jwt, url: rawUrl, gifter_name } = await request.json();
+  const { jwt, url: rawUrl, gifter_name, max_views } = await request.json();
   const url = new URL(rawUrl).href;
 
   // Validate URL origin has an active bot session (prevents SSRF)
@@ -27,7 +27,8 @@ export async function handleCreate(request, env) {
     );
   }
 
-  const token = await createGiftToken(env, { url, email, gifter_name });
+  const parsedMaxViews = (typeof max_views === 'number' && max_views > 0 && Number.isInteger(max_views)) ? max_views : null;
+  const token = await createGiftToken(env, { url, email, gifter_name, max_views: parsedMaxViews });
   log.info('create', { email, url });
 
   return Response.json({ token }, {

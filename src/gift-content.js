@@ -58,6 +58,14 @@ export async function handleFetchContent(request, env, ctx) {
     return Response.json({ error: 'invalid' }, { status: 400, headers: corsHeaders() });
   }
 
+  if (metadata.max_views) {
+    const { count } = await env.DB.prepare('SELECT COUNT(*) as count FROM link_views WHERE token = ?').bind(token).first();
+    if (count >= metadata.max_views) {
+      log.debug('redeem: redemption limit reached', { token: token.slice(0, 6), max_views: metadata.max_views, count });
+      return Response.json({ error: 'redemption_limit' }, { status: 410, headers: corsHeaders() });
+    }
+  }
+
   const sessionCookies = await getBotSession(env, new URL(url).origin);
   if (!sessionCookies) {
     log.error('redeem: no bot session for', new URL(url).origin);

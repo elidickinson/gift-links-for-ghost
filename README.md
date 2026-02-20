@@ -70,7 +70,9 @@ These are deliberate decisions, informed by how NYT, Washington Post, Bloomberg,
 
 **Multi-use links.** A single gift link can be shared with multiple people, like the NYT model. BLOX Digital uses single-use links (one redemption, then the paywall returns), which prevents viral spread but makes the link feel fragile. We chose shareability over control.
 
-**No monthly quota or gift link redemption limit (yet).** Every major newspaper limits subscribers to 5–20 gift links per month and many limit the number of times a gift link can be redeemed. We don't enforce this yet, though usage can be monitored in the admin dashboard.
+**No monthly quota (yet).** Every major newspaper limits subscribers to 5–20 gift links per month. We don't enforce this yet, though usage can be monitored in the admin dashboard.
+
+**Optional per-link redemption limit.** Site admins can add `data-gl4g-max-views="10"` to the script tag to cap how many times each gift link can be viewed. The limit is stored per-link at creation time. Without it, links are unlimited until they expire.
 
 **Links expire after 14 days, then soft-delete.** Expired links are marked inactive (not deleted) so analytics and admin views preserve the full history. The TTL is configurable via `GIFT_TTL_DAYS`.
 
@@ -90,7 +92,7 @@ These are deliberate decisions, informed by how NYT, Washington Post, Bloomberg,
  - Analytics (but not PII) about popularity of different gift links could be exposed
 
 **Risk: Gift link gets used by "too many" people**
- - Yup, that's a risk. Currently no limit on the number of redemptions per gift link and they could end up going viral on social media, etc.
+ - By default there is no limit on the number of redemptions per gift link and they could end up going viral on social media, etc. Site admins can set `data-gl4g-max-views` to cap views per link.
  - It is unlikely that Google or other search engines would index a gift link because Ghost adds a `canonical` tag to the main post URL
  
 **Risk: Non-paying members exploit gift link system**
@@ -163,5 +165,4 @@ When `DEV_MODE` is set (via `.env`, never in production), the worker exposes:
 
 - Per-post access verification (via content proof or Ghost Admin API)
 - Per-subscriber gift link creation limits
-- Gift link redemption limit (by number of clicks, not just days)
 - Gift link revocation
