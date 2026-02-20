@@ -68,7 +68,7 @@ export async function handleFetchContent(request, env, ctx) {
   const durationMs = Date.now() - startTime;
 
   if (result.paywalled) {
-    log.error('redeem: bot session expired, requesting refresh', { url, durationMs });
+    log.error('redeem: bot session expired, requesting refresh', { url, durationMs, paywallSelector: result.paywallSelector });
     const origin = new URL(url).origin;
     ctx.waitUntil(refreshSession(origin, env.BOT_EMAIL, env.DB).catch(err =>
       log.error('redeem: background session refresh failed', { origin, error: err.message }),
@@ -77,13 +77,13 @@ export async function handleFetchContent(request, env, ctx) {
   }
 
   if (!result.html) {
-    log.error('redeem: content extraction failed', { url, durationMs, pageBytes: result.pageBytes });
+    log.error('redeem: content extraction failed', { url, durationMs, pageBytes: result.pageBytes, content_selector: content_selector || 'default' });
     return Response.json({ error: 'fetch_failed' }, { status: 502, headers: corsHeaders() });
   }
 
   const html = result.html;
 
-  log.info('redeem', { token: token.slice(0, 6), url, durationMs });
+  log.info('redeem', { token: token.slice(0, 6), url, durationMs, ...(content_selector && { content_selector }) });
   ctx.waitUntil(recordView(env, token, request));
 
   return Response.json({ html, gifter_name: escapeHtml(metadata.gifter_name) }, {
@@ -102,7 +102,7 @@ const PAYWALL_SELECTORS = [
 ];
 
 export function isPaywalled(doc) {
-  return PAYWALL_SELECTORS.some(sel => selectAll(sel, doc).length > 0);
+  return PAYWALL_SELECTORS.find(sel => selectAll(sel, doc).length > 0) ?? null;
 }
 
 async function fetchGhostContent(url, sessionCookies, contentSelector) {
@@ -118,8 +118,9 @@ async function fetchGhostContent(url, sessionCookies, contentSelector) {
   const pageHtml = await response.text();
   const doc = parseDocument(pageHtml);
 
-  if (isPaywalled(doc)) {
-    return { html: null, paywalled: true, pageBytes: pageHtml.length };
+  const paywallSelector = isPaywalled(doc);
+  if (paywallSelector) {
+    return { html: null, paywalled: true, paywallSelector, pageBytes: pageHtml.length };
   }
 
   return { html: extractContent(pageHtml, contentSelector), pageBytes: pageHtml.length };

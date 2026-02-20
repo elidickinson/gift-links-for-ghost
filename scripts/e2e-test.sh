@@ -402,6 +402,44 @@ assert_contains "$SELECTOR_REDEEM" "premium content behind the paywall" "Custom 
 # Restore original code injection
 ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null
 
+# -- 13. Nested sections (the bug htmlparser2 fixes) --
+
+echo "==> Testing nested section extraction"
+
+# Create a post whose content includes a nested <section> inside gh-content.
+# The old regex [\s\S]*? would truncate at the first </section>, losing
+# everything after the nested section. htmlparser2 handles this correctly.
+NESTED_MOBILEDOC='{"version":"0.3.1","atoms":[],"cards":[["html",{"html":"<section class=\"gh-card\"><p>Inside nested section</p></section>"}]],"markups":[],"sections":[[1,"p",[[0,[],0,"Before the nested section."]]],[10,0],[1,"p",[[0,[],0,"After the nested section."]]]]}'
+NESTED_POST_ID=$(ghost_admin POST "posts/" \
+  -d "{\"posts\":[{\"title\":\"Nested Section Test\",\"mobiledoc\":$(echo "$NESTED_MOBILEDOC" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))'),\"status\":\"published\",\"visibility\":\"paid\"}]}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['posts'][0]['id'])")
+test -n "$NESTED_POST_ID" || fail "Could not create nested section test post"
+
+# Visit as paid member (still signed in from section 12), create gift link
+br goto "${GHOST_URL}/nested-section-test/" > /dev/null 2>&1
+sleep 3
+
+HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
+assert_contains "$HAS_BUTTON" "true" "Gift button visible on nested post"
+
+br click ".gl4g-button" > /dev/null 2>&1
+sleep 2
+
+NESTED_URL=$(br eval "location.href" 2>&1)
+NESTED_TOKEN=$(echo "$NESTED_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
+test -n "$NESTED_TOKEN" || fail "No gift token from nested section test"
+
+# Redeem via API — verify ALL content survives (not truncated at first </section>)
+NESTED_REDEEM=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$NESTED_TOKEN\",\"url\":\"${GHOST_URL}/nested-section-test/\"}")
+assert_contains "$NESTED_REDEEM" "Before the nested section" "Nested: content before section preserved"
+assert_contains "$NESTED_REDEEM" "Inside nested section" "Nested: content inside nested section preserved"
+assert_contains "$NESTED_REDEEM" "After the nested section" "Nested: content after section preserved"
+
+# Cleanup test post
+ghost_admin DELETE "posts/$NESTED_POST_ID/" > /dev/null
+
 # -- Done --
 
 echo ""
