@@ -64,7 +64,7 @@
   <li>In Ghost Admin, go to <strong>Members</strong> and create a new member with the email <strong>bot@giftlinks.net</strong>. Give it a <strong>complimentary subscription</strong> to a paid tier.</li>
   <li>Enter your Ghost site URL below and click Connect. This sends the bot the sign-in email it needs to read your paywalled posts.<br>
   <form action="/api/setup" method="POST" style="margin-top: 8px; display: flex; gap: 8px;">
-    <input name="url" type="text" placeholder="yourblog.com" required style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+    <input name="url" type="text" placeholder="https://www.yourblog.com/" required style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
     <button type="submit" style="padding: 8px 18px; background: #6b7280; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap;">Connect</button>
   </form>
   <script>document.querySelector('form').onsubmit = function() { var b = this.querySelector('button'); b.disabled = true; b.textContent = 'Please wait\u2026'; }</script>
