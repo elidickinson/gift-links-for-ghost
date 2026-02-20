@@ -206,15 +206,23 @@
     if (posts[0].access === true) return;
 
     // Post is paywalled and user has access — show gift button
-    const button = document.createElement('button');
-    button.className = 'gl4g-button gl4g-button--float gh-button';
-    button.textContent = S.button_text;
-    button.addEventListener('click', handleGiftClick);
-    document.body.appendChild(button);
+    const existing = document.querySelector('.gl4g-button');
+    if (existing) {
+      existing.addEventListener('click', handleGiftClick);
+      const wrapper = existing.closest('.gl4g-button-wrapper');
+      if (wrapper) wrapper.style.display = '';
+    } else {
+      const button = document.createElement('button');
+      button.className = 'gl4g-button gl4g-button--float gh-button';
+      button.textContent = S.button_text;
+      button.addEventListener('click', handleGiftClick);
+      document.body.appendChild(button);
+    }
   }
 
-  async function handleGiftClick() {
-    const button = document.querySelector('.gl4g-button');
+  async function handleGiftClick(e) {
+    e.preventDefault();
+    const button = e.currentTarget;
     button.disabled = true;
     button.textContent = S.creating_text;
 
@@ -248,7 +256,7 @@
       button.disabled = false;
       button.textContent = S.button_text;
       const container = document.querySelector('section.gh-content');
-      if (container) showBar(container, S.error_text, 'error', 5000);
+      if (container) showBar(container, S.error_text, 'error');
     }
   }
 
