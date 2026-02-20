@@ -359,11 +359,11 @@
   // — Shared UI —
 
   function showBar(container, html, type, autoRemoveMs) {
-    // Theme-placed bar: use existing element if data-gl4g-bar specifies a class
-    const barClass = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
-    const existing = barClass && document.querySelector(`.${barClass}`);
+    // Theme-placed bar: use existing element if data-gl4g-bar specifies a selector
+    const barSelector = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
+    const existing = barSelector && document.querySelector(barSelector);
     if (existing) {
-      existing.className = `${barClass} gl4g-bar gl4g-${type}`;
+      existing.className = `${existing.className} gl4g-bar gl4g-${type}`;
       existing.innerHTML = html;
       existing.hidden = !existing.textContent.trim();
       if (autoRemoveMs) setTimeout(() => existing.remove(), autoRemoveMs);

@@ -126,9 +126,10 @@
 <table>
   <tr><th>Attribute</th><th>Description</th></tr>
   <tr><td><code>data-gl4g-max-views</code></td><td>Limit how many times each gift link can be viewed. Without it, links are unlimited until they expire.</td></tr>
-  <tr><td><code>data-gl4g-content</code></td><td>CSS selector for the post content container. Tries <code>section.gh-content</code> first, then several fallbacks. Override for non-standard themes.</td></tr>
-  <tr><td><code>data-gl4g-gate</code></td><td>CSS selector for the paywall element to hide. Tries <code>aside.gh-post-upgrade-cta</code>, <code>.content-cta</code>, then <code>.post-sneak-peek</code>. Override for non-standard themes.</td></tr>
-  <tr><td><code>data-gl4g-api</code></td><td>Custom worker URL for self-hosting (default: <code>https://giftlinks.net</code>).</td></tr>
+  <tr><td><code>data-gl4g-content</code></td><td>CSS selector for the post content container. Tries <code>section.gh-content</code> first, then several fallbacks. May need to set your own for custom themes. The selector you put in here must match only one element on the page.</td></tr>
+  <tr><td><code>data-gl4g-gate</code></td><td>CSS selector for the paywall element. If this element is on the page then the post is currently paywalled and the visitor doesn't have access. Tries <code>.gh-post-upgrade-cta</code>, <code>.content-cta</code>, and <code>.post-sneak-peek</code>. The selector should only match at most one element on the page.</td></tr>
+  <tr><td><code>data-gl4g-bar</code></td><td>By default the script adds a message bar at the top of the post if it needs to say something about gift links. You can set a selector here and it will use that spot instead (replacing anything currently inside it)</td></tr>
+  <tr><td><code>data-gl4g-api</code></td><td>Custom worker URL if you are self-hosting instead of using giftlinks.net (default: <code>https://giftlinks.net</code>).</td></tr>
 </table>
 <pre style="text-align: left;">&lt;script src="https://giftlinks.net/client.js" defer
   data-gl4g-max-views="10"
