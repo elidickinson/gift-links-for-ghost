@@ -10,6 +10,22 @@
   // Override with data-gl4g-api attribute for self-hosting: <script src="..." data-gl4g-api="https://your-worker.example.com">
   const API_BASE = document.querySelector('script[data-gl4g-api]')?.dataset.gl4gApi || 'https://giftlinks.net';
 
+  // Content container lookup with fallback chain
+  function findContentContainer() {
+    const custom = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent;
+    if (custom) return document.querySelector(custom);
+
+    const ghContent = document.querySelector('section.gh-content');
+    if (ghContent) return ghContent;
+
+    for (const sel of ['article.post .content', 'article.post', 'article', '.content']) {
+      const matches = document.querySelectorAll(sel);
+      if (matches.length === 1) return matches[0];
+    }
+
+    return null;
+  }
+
   // User-facing strings — site admins can override via window.gl4g_strings
   const DEFAULTS = {
     button_text: 'Gift this article',
@@ -132,8 +148,11 @@
   async function redeemGiftLink(token) {
     if (!paywallGate) return; // Post is public or user has access
 
-    const container = paywallGate.closest('section.gh-content');
-    if (!container) return;
+    const container = findContentContainer();
+    if (!container) {
+      console.warn('[gl4g] No content container found — gift link not redeemed');
+      return;
+    }
 
     const loadingBar = showBar(container, '<span class="gl4g-spinner"></span>' + S.loading_text, 'info');
 
@@ -172,6 +191,11 @@
 
   async function maybeShowGiftButton() {
     if (paywallGate) return; // User doesn't have access
+
+    if (!findContentContainer()) {
+      console.warn('[gl4g] No content container found — gift button hidden');
+      return;
+    }
 
     // Check if user is logged in
     const sessionResponse = await fetch('/members/api/session', { credentials: 'same-origin' });
@@ -254,13 +278,13 @@
       console.error('[gl4g] Gift link creation failed:', error);
       button.disabled = false;
       button.textContent = S.button_text;
-      const container = document.querySelector('section.gh-content');
+      const container = findContentContainer();
       if (container) showBar(container, S.error_text, 'error');
     }
   }
 
   function showCreateConfirmation(giftUrl) {
-    const container = document.querySelector('section.gh-content');
+    const container = findContentContainer();
     if (!container) return;
 
     const bar = showBar(container, S.created_text, 'success');
@@ -296,6 +320,17 @@
   // — Shared UI —
 
   function showBar(container, html, type, autoRemoveMs) {
+    // Theme-placed bar: use existing element if data-gl4g-bar specifies a class
+    const barClass = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
+    const existing = barClass && document.querySelector(`.${barClass}`);
+    if (existing) {
+      existing.className = `${barClass} gl4g-bar gl4g-${type}`;
+      existing.innerHTML = html;
+      existing.hidden = !existing.textContent.trim();
+      if (autoRemoveMs) setTimeout(() => existing.remove(), autoRemoveMs);
+      return existing;
+    }
+
     const bar = document.createElement('div');
     bar.className = `gl4g-bar gl4g-${type}`;
     bar.innerHTML = html;

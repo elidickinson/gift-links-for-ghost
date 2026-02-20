@@ -26,4 +26,24 @@ describe('extractContent', () => {
     expect(html).toContain('paying subscribers only');
     expect(html).not.toContain('Among these three things');
   });
+
+  it('falls back to article.post when no gh-content section', () => {
+    const html = extractContent('<html><body><article class="post type-post"><p>Post body</p></article></body></html>');
+    expect(html).toBe('<p>Post body</p>');
+  });
+
+  it('falls back to bare article when unique', () => {
+    const html = extractContent('<html><body><article><p>Article body</p></article></body></html>');
+    expect(html).toBe('<p>Article body</p>');
+  });
+
+  it('skips ambiguous article matches', () => {
+    const html = extractContent('<html><body><article><p>One</p></article><article><p>Two</p></article></body></html>');
+    expect(html).toBe('');
+  });
+
+  it('falls back to element with content class', () => {
+    const html = extractContent('<html><body><div class="content"><p>Div content</p></div></body></html>');
+    expect(html).toBe('<p>Div content</p>');
+  });
 });

@@ -309,6 +309,62 @@ curl -s -o /dev/null -b "$ADMIN_COOKIE" -X PUT "$GHOST_URL/ghost/api/admin/setti
   -H "Content-Type: application/json" \
   -H "Origin: $GHOST_URL" \
   -d "$RESTORE_JSON"
+
+# -- 12. Configurable content selector (data-gl4g-content) --
+
+echo "==> Testing data-gl4g-content config"
+
+# Inject script with explicit content selector pointing at Ghost default
+CONTENT_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
+import json, os
+worker = os.environ["WORKER_URL"]
+script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' data-gl4g-content='section.gh-content' defer></script>"
+print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script}]}))
+PYEOF
+)
+curl -s -o /dev/null -b "$ADMIN_COOKIE" -X PUT "$GHOST_URL/ghost/api/admin/settings/" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $GHOST_URL" \
+  -d "$CONTENT_JSON"
+
+# Fresh browser, sign in as paid member
+br stop > /dev/null 2>&1 || true
+br start --headless > /dev/null 2>&1
+
+curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
+scripts/reset-ratelimit.sh
+INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
+curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
+
+MAGIC_LINK=""
+for i in $(seq 1 10); do
+  sleep 0.5
+  MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
+    | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
+  if [ -n "$MESSAGE_ID" ]; then
+    MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
+      | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
+      | sed 's/\\u0026/\&/' | head -1)
+    break
+  fi
+done
+test -n "$MAGIC_LINK" || fail "No magic link for content selector test"
+br goto "$MAGIC_LINK" > /dev/null 2>&1
+sleep 2
+
+br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
+sleep 3
+
+HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
+assert_contains "$HAS_BUTTON" "true" "Gift button visible with data-gl4g-content"
+
+# Restore original code injection
+curl -s -o /dev/null -b "$ADMIN_COOKIE" -X PUT "$GHOST_URL/ghost/api/admin/settings/" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $GHOST_URL" \
+  -d "$RESTORE_JSON"
 rm -f "$ADMIN_COOKIE"
 
 # -- Done --

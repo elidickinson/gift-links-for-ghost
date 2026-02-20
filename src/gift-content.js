@@ -5,13 +5,27 @@ import { escapeHtml } from './escape-html.js';
 import { log } from './log.js';
 
 // Regex over HTMLRewriter because we need the exact original HTML, not a reconstruction.
-// *Hopefully* safe because this element *should* only appears once per page. A nested <section>
-// inside the regular content <section> would be A Problem.
-const CONTENT_REGEX = /<section[^>]*class="[^"]*gh-content[^"]*"[^>]*>([\s\S]*?)<\/section>/;
+// Fallback chain for themes that don't use Ghost's default section.gh-content.
+const CONTENT_PATTERNS = [
+  // Ghost default: section.gh-content (accept first match — specific enough)
+  { pattern: /<section[^>]*class="[^"]*\bgh-content\b[^"]*"[^>]*>([\s\S]*?)<\/section>/, unique: false },
+  // article with "post" class
+  { pattern: /<article[^>]*class="[^"]*\bpost\b[^"]*"[^>]*>([\s\S]*?)<\/article>/, unique: true },
+  // single article element
+  { pattern: /<article[^>]*>([\s\S]*?)<\/article>/, unique: true },
+  // element with "content" class (backreference matches closing tag)
+  { pattern: /<(\w+)[^>]*class="[^"]*\bcontent\b[^"]*"[^>]*>([\s\S]*?)<\/\1>/, unique: true },
+];
 
 export function extractContent(html) {
-  const match = html.match(CONTENT_REGEX);
-  return match?.[1] ?? '';
+  for (const { pattern, unique } of CONTENT_PATTERNS) {
+    const matches = [...html.matchAll(new RegExp(pattern, 'g'))];
+    if (matches.length === 0) continue;
+    if (unique && matches.length !== 1) continue;
+    // Last capture group has the content
+    return matches[0][matches[0].length - 1];
+  }
+  return '';
 }
 
 export async function handleFetchContent(request, env, ctx) {
