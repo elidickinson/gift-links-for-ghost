@@ -28,11 +28,10 @@
 
   // Content container lookup with fallback chain
   function findContentContainer() {
-    const custom = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent;
-    if (custom) {
-      const matches = document.querySelectorAll(custom);
+    if (CONTENT_SELECTOR) {
+      const matches = document.querySelectorAll(CONTENT_SELECTOR);
       if (matches.length === 1) return matches[0];
-      if (matches.length > 1) console.error(`[gl4g] data-gl4g-content selector "${custom}" matched ${matches.length} elements — expected 1`);
+      if (matches.length > 1) console.error(`[gl4g] data-gl4g-content selector "${CONTENT_SELECTOR}" matched ${matches.length} elements — expected 1`);
       return null;
     }
 
@@ -192,27 +191,22 @@
 
       if (response.ok) {
         const { html, gifter_name } = await response.json();
-        loadingBar.hidden = true;
         paywallGate.remove();
         container.innerHTML = html;
-        injectBanner(container, gifter_name);
+        showBar(container, S.gift_banner.replace(/\{name\}/g, gifter_name), 'info');
         history.replaceState(null, '', removeQueryParam(location.href, 'gift'));
       } else {
         const { error } = await response.json();
         console.error(`[gl4g] Redeem failed: ${response.status} ${error}`);
-        loadingBar.hidden = true;
         const msg = error === 'expired' ? S.expired_text : error === 'redemption_limit' ? S.limit_text : S.error_text;
         showBar(container, msg, 'error');
       }
     } catch (error) {
       console.error('[gl4g] Redeem failed:', error);
-      loadingBar.hidden = true;
       showBar(container, S.error_text, 'error');
+    } finally {
+      loadingBar.hidden = true;
     }
-  }
-
-  function injectBanner(container, gifterName) {
-    showBar(container, S.gift_banner.replace(/\{name\}/g, gifterName), 'info');
   }
 
 
@@ -359,7 +353,7 @@
 
   // — Shared UI —
 
-  function showBar(container, html, type, autoRemoveMs) {
+  function showBar(container, html, type) {
     // Theme-placed bar: use existing element if data-gl4g-bar specifies a selector
     const barSelector = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
     const existing = barSelector && document.querySelector(barSelector);
@@ -368,7 +362,6 @@
       existing.classList.add(`gl4g-${type}`);
       existing.innerHTML = html;
       existing.hidden = !existing.textContent.trim();
-      if (autoRemoveMs) setTimeout(() => existing.remove(), autoRemoveMs);
       return existing;
     }
 
@@ -377,13 +370,12 @@
     bar.innerHTML = html;
     bar.hidden = !bar.textContent.trim();
     if (container) container.prepend(bar);
-    if (autoRemoveMs) setTimeout(() => bar.remove(), autoRemoveMs);
     return bar;
   }
 
   // — Utilities —
 
-  // Single retry after 1s for network errors or 5xx responses
+  // Single retry after 2s for network errors or 5xx responses
   async function retryFetch(url, opts) {
     try {
       const res = await fetch(url, opts);
