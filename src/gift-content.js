@@ -25,7 +25,8 @@ export function extractContent(html, customSelector) {
 
   if (customSelector) {
     const matches = selectAll(customSelector, doc);
-    if (matches.length > 0) return innerHTML(matches[0]);
+    if (matches.length === 1) return innerHTML(matches[0]);
+    if (matches.length > 1) log.error('extractContent: custom selector matched multiple elements', { selector: customSelector, count: matches.length });
     return '';
   }
 

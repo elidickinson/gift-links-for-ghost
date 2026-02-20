@@ -27,7 +27,12 @@
   // Content container lookup with fallback chain
   function findContentContainer() {
     const custom = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent;
-    if (custom) return document.querySelector(custom);
+    if (custom) {
+      const matches = document.querySelectorAll(custom);
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) console.error(`[gl4g] data-gl4g-content selector "${custom}" matched ${matches.length} elements — expected 1`);
+      return null;
+    }
 
     const ghContent = document.querySelector('section.gh-content');
     if (ghContent) return ghContent;

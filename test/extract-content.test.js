@@ -119,6 +119,15 @@ describe('extractContent', () => {
     expect(html).toBe('');
   });
 
+  it('custom selector returns empty string when multiple elements match', () => {
+    const page = `<html><body>
+      <div class="content-block"><p>First</p></div>
+      <div class="content-block"><p>Second</p></div>
+    </body></html>`;
+    const html = extractContent(page, '.content-block');
+    expect(html).toBe('');
+  });
+
   it('custom selector with complex CSS (attribute + descendant)', () => {
     const page = `<html><body>
       <main data-post="true">
