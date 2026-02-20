@@ -82,6 +82,76 @@ describe('API', () => {
     expect(result.gifter_name).toBe('Alice');
   });
 
+  it('redeem with custom content_selector extracts from specified element', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt, url: 'https://www.example.com/my-post/', gifter_name: 'Alice' }),
+    });
+    const { token } = await createResponse.json();
+
+    // Page has both gh-content and a custom container — custom selector should win
+    const pageHtml = `<html><body>
+      <section class="gh-content"><p>Default content</p></section>
+      <div class="custom-theme-body"><p>Custom theme content</p></div>
+    </body></html>`;
+
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, pageHtml, { headers: { 'Content-Type': 'text/html' } });
+
+    const redeemResponse = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/', content_selector: 'div.custom-theme-body' }),
+    });
+
+    expect(redeemResponse.status).toBe(200);
+    const result = await redeemResponse.json();
+    expect(result.html).toContain('Custom theme content');
+    expect(result.html).not.toContain('Default content');
+  });
+
+  it('redeem handles nested sections correctly', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt, url: 'https://www.example.com/my-post/', gifter_name: 'Alice' }),
+    });
+    const { token } = await createResponse.json();
+
+    // Nested sections — the old regex would truncate at first </section>
+    const pageHtml = `<html><body>
+      <section class="gh-content">
+        <p>Before nested</p>
+        <section class="gh-card"><p>Nested card</p></section>
+        <p>After nested</p>
+      </section>
+    </body></html>`;
+
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, pageHtml, { headers: { 'Content-Type': 'text/html' } });
+
+    const redeemResponse = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+
+    expect(redeemResponse.status).toBe(200);
+    const result = await redeemResponse.json();
+    expect(result.html).toContain('Before nested');
+    expect(result.html).toContain('Nested card');
+    expect(result.html).toContain('After nested');
+  });
+
   it('returns not_found for missing token', async () => {
     const response = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
       method: 'POST',

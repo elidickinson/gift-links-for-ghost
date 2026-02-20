@@ -9,6 +9,7 @@
 
   // Override with data-gl4g-api attribute for self-hosting: <script src="..." data-gl4g-api="https://your-worker.example.com">
   const API_BASE = document.querySelector('script[data-gl4g-api]')?.dataset.gl4gApi || 'https://giftlinks.net';
+  const CONTENT_SELECTOR = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent || null;
 
   // Paywall gate detection with fallback chain
   function findPaywallGate() {
@@ -173,10 +174,12 @@
     const loadingBar = showBar(container, '<span class="gl4g-spinner"></span>' + S.loading_text, 'info');
 
     try {
+      const fetchBody = { token, url: location.href.split('?')[0] };
+      if (CONTENT_SELECTOR) fetchBody.content_selector = CONTENT_SELECTOR;
       const response = await retryFetch(`${API_BASE}/api/gift-link/fetch-content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, url: location.href.split('?')[0] }),
+        body: JSON.stringify(fetchBody),
       });
 
       if (response.ok) {

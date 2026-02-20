@@ -1,38 +1,45 @@
+import { parseDocument } from 'htmlparser2';
+import { selectAll } from 'css-select';
+import render from 'dom-serializer';
 import { lookupGiftToken } from './gift-token.js';
 import { getBotSession, refreshSession } from './bot-session.js';
 import { corsHeaders } from './router.js';
 import { escapeHtml } from './escape-html.js';
 import { log } from './log.js';
 
-// Regex over HTMLRewriter because we need the exact original HTML, not a reconstruction.
 // Fallback chain for themes that don't use Ghost's default section.gh-content.
-//
-// Class matching: \b treats hyphens as word boundaries, so \bpost\b falsely matches
-// "post-card". Use (?<=[ "]) and (?=[ "]) to require space or quote boundaries,
-// ensuring exact CSS class matching within class="..." attributes.
-const CONTENT_PATTERNS = [
-  // Ghost default: section.gh-content (accept first match — specific enough)
-  { pattern: /<section[^>]*class="[^"]*\bgh-content\b[^"]*"[^>]*>([\s\S]*?)<\/section>/, unique: false },
-  // article with exact "post" class (not post-card, post-access-tiers, etc.)
-  { pattern: /<article[^>]*class="(?:[^"]*\s)?post(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/article>/, unique: true },
-  // single article element
-  { pattern: /<article[^>]*>([\s\S]*?)<\/article>/, unique: true },
-  // element with exact "content" class (not content-width, content-cta, etc.)
-  { pattern: /<(\w+)[^>]*class="(?:[^"]*\s)?content(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/\1>/, unique: true },
+// Uses css-select on an htmlparser2 DOM — handles nesting, attribute quoting, etc.
+const CONTENT_SELECTORS = [
+  { selector: 'section.gh-content', unique: false },
+  { selector: 'article.post', unique: true },
+  { selector: 'article', unique: true },
+  { selector: '.content', unique: true },
 ];
 
-export function extractContent(html) {
-  for (const { pattern, unique } of CONTENT_PATTERNS) {
-    const matches = [...html.matchAll(new RegExp(pattern, 'g'))];
+function innerHTML(el) {
+  return render(el.children);
+}
+
+export function extractContent(html, customSelector) {
+  const doc = parseDocument(html);
+
+  if (customSelector) {
+    const matches = selectAll(customSelector, doc);
+    if (matches.length > 0) return innerHTML(matches[0]);
+    return '';
+  }
+
+  for (const { selector, unique } of CONTENT_SELECTORS) {
+    const matches = selectAll(selector, doc);
     if (matches.length === 0) continue;
     if (unique && matches.length !== 1) continue;
-    return matches[0][matches[0].length - 1];
+    return innerHTML(matches[0]);
   }
   return '';
 }
 
 export async function handleFetchContent(request, env, ctx) {
-  const { token, url: rawUrl } = await request.json();
+  const { token, url: rawUrl, content_selector } = await request.json();
   const url = new URL(rawUrl).href;
 
   const metadata = await lookupGiftToken(env, token);
@@ -57,7 +64,7 @@ export async function handleFetchContent(request, env, ctx) {
   }
 
   const startTime = Date.now();
-  const result = await fetchGhostContent(url, sessionCookies);
+  const result = await fetchGhostContent(url, sessionCookies, content_selector);
   const durationMs = Date.now() - startTime;
 
   if (result.paywalled) {
@@ -84,15 +91,21 @@ export async function handleFetchContent(request, env, ctx) {
   });
 }
 
-// Paywall gate detection — if any of these match as HTML elements (not CSS), the
-// bot session likely expired and the page is showing a paywall.
-const PAYWALL_PATTERNS = [
-  /<aside[^>]*gh-post-upgrade-cta/,     // Ghost default (Casper)
-  /<div[^>]*class="[^"]*\bcontent-cta\b/, // common theme pattern
-  /<div[^>]*class="[^"]*\bpost-sneak-peek\b/, // truncated content indicator
+// Paywall gate detection — if any of these selectors match an element in the DOM,
+// the bot session likely expired and the page is showing a paywall.
+// Ghost always injects CTA styles, but only renders the element when the visitor
+// lacks access — so a DOM element match means the paywall is visible.
+const PAYWALL_SELECTORS = [
+  'aside.gh-post-upgrade-cta',   // Ghost default (Casper)
+  '.content-cta',                // common theme pattern
+  '.post-sneak-peek',            // truncated content indicator
 ];
 
-async function fetchGhostContent(url, sessionCookies) {
+function isPaywalled(doc) {
+  return PAYWALL_SELECTORS.some(sel => selectAll(sel, doc).length > 0);
+}
+
+async function fetchGhostContent(url, sessionCookies, contentSelector) {
   const response = await fetch(url, {
     headers: { 'Cookie': sessionCookies },
   });
@@ -103,14 +116,13 @@ async function fetchGhostContent(url, sessionCookies) {
   }
 
   const pageHtml = await response.text();
+  const doc = parseDocument(pageHtml);
 
-  // Ghost always injects CTA styles, but only renders the element when
-  // the visitor lacks access. Match an actual HTML element, not the CSS.
-  if (PAYWALL_PATTERNS.some(p => p.test(pageHtml))) {
+  if (isPaywalled(doc)) {
     return { html: null, paywalled: true, pageBytes: pageHtml.length };
   }
 
-  return { html: extractContent(pageHtml), pageBytes: pageHtml.length };
+  return { html: extractContent(pageHtml, contentSelector), pageBytes: pageHtml.length };
 }
 
 function normalizeReferer(refererHeader) {

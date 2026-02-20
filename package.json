@@ -16,6 +16,10 @@
     "wrangler": "^4.65.0"
   },
   "dependencies": {
+    "css-select": "^6.0.0",
+    "dom-serializer": "^2.0.0",
+    "domutils": "^3.2.2",
+    "htmlparser2": "^10.1.0",
     "postal-mime": "^2.7.3"
   }
 }

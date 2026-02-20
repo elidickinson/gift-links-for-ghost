@@ -66,4 +66,79 @@ describe('extractContent', () => {
     const html = extractContent(page);
     expect(html).toBe('<p>Main content</p>');
   });
+
+  it('handles nested sections without truncating at first closing tag', () => {
+    // The old regex [\s\S]*? was non-greedy and would stop at the first </section>,
+    // breaking on nested sections. htmlparser2 handles this correctly.
+    const page = `<html><body>
+      <section class="gh-content">
+        <p>Before nested</p>
+        <section class="gh-card">
+          <p>Inside nested section</p>
+        </section>
+        <p>After nested</p>
+      </section>
+    </body></html>`;
+    const html = extractContent(page);
+    expect(html).toContain('Before nested');
+    expect(html).toContain('Inside nested section');
+    expect(html).toContain('After nested');
+    expect(html).toContain('<section class="gh-card">');
+  });
+
+  it('handles deeply nested same-tag elements', () => {
+    const page = `<html><body>
+      <section class="gh-content">
+        <section class="level-1">
+          <section class="level-2">
+            <p>Deep content</p>
+          </section>
+        </section>
+      </section>
+    </body></html>`;
+    const html = extractContent(page);
+    expect(html).toContain('Deep content');
+    expect(html).toContain('<section class="level-2">');
+    expect(html).toContain('<section class="level-1">');
+  });
+
+  it('uses custom selector when provided', () => {
+    const page = `<html><body>
+      <section class="gh-content"><p>Default content</p></section>
+      <div class="my-theme-content"><p>Custom content</p></div>
+    </body></html>`;
+    const html = extractContent(page, 'div.my-theme-content');
+    expect(html).toBe('<p>Custom content</p>');
+    expect(html).not.toContain('Default content');
+  });
+
+  it('custom selector returns empty string when no match', () => {
+    const page = '<html><body><section class="gh-content"><p>Content</p></section></body></html>';
+    const html = extractContent(page, '.nonexistent');
+    expect(html).toBe('');
+  });
+
+  it('custom selector with complex CSS (attribute + descendant)', () => {
+    const page = `<html><body>
+      <main data-post="true">
+        <div class="post-body">
+          <p>Paragraph one</p>
+          <figure><img src="photo.jpg"><figcaption>A photo</figcaption></figure>
+          <p>Paragraph two</p>
+        </div>
+      </main>
+    </body></html>`;
+    const html = extractContent(page, 'main[data-post] .post-body');
+    expect(html).toContain('Paragraph one');
+    expect(html).toContain('Paragraph two');
+    expect(html).toContain('<figcaption>');
+  });
+
+  it('preserves void elements and their attributes', () => {
+    const page = `<html><body><section class="gh-content"><p>Text</p><img src="pic.jpg" alt="A &quot;great&quot; photo" loading="lazy"><hr></section></body></html>`;
+    const html = extractContent(page);
+    expect(html).toContain('<img src="pic.jpg"');
+    expect(html).toContain('alt=');
+    expect(html).toContain('<hr>');
+  });
 });

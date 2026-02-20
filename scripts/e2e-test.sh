@@ -383,6 +383,22 @@ sleep 3
 HAS_BUTTON=$(br eval "document.querySelector('.gl4g-button') !== null" 2>&1)
 assert_contains "$HAS_BUTTON" "true" "Gift button visible with data-gl4g-content"
 
+# -- 12b. Custom selector passed through to API for content extraction --
+# Create a gift link, then redeem via API with content_selector to verify backend uses it
+
+br click ".gl4g-button" > /dev/null 2>&1
+sleep 2
+
+SELECTOR_URL=$(br eval "location.href" 2>&1)
+SELECTOR_TOKEN=$(echo "$SELECTOR_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
+test -n "$SELECTOR_TOKEN" || fail "No gift token from content selector test"
+
+# Redeem with custom content_selector passed to API
+SELECTOR_REDEEM=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$SELECTOR_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\",\"content_selector\":\"section.gh-content\"}")
+assert_contains "$SELECTOR_REDEEM" "premium content behind the paywall" "Custom selector extracts content via API"
+
 # Restore original code injection
 ghost_admin PUT "settings/" -d "$RESTORE_JSON" > /dev/null
 
