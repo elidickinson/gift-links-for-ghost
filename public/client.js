@@ -10,6 +10,19 @@
   // Override with data-gl4g-api attribute for self-hosting: <script src="..." data-gl4g-api="https://your-worker.example.com">
   const API_BASE = document.querySelector('script[data-gl4g-api]')?.dataset.gl4gApi || 'https://giftlinks.net';
 
+  // Paywall gate detection with fallback chain
+  function findPaywallGate() {
+    const custom = document.querySelector('script[data-gl4g-gate]')?.dataset.gl4gGate;
+    if (custom) return document.querySelector(custom);
+
+    for (const sel of ['aside.gh-post-upgrade-cta', '.content-cta', '.post-sneak-peek']) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+
+    return null;
+  }
+
   // Content container lookup with fallback chain
   function findContentContainer() {
     const custom = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent;
@@ -46,7 +59,7 @@
   injectStyles();
 
   const giftToken = new URLSearchParams(location.search).get('gift');
-  const paywallGate = document.querySelector('aside.gh-post-upgrade-cta');
+  const paywallGate = findPaywallGate();
 
   if (giftToken) {
     redeemGiftLink(giftToken);

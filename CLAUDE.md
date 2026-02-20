@@ -42,7 +42,7 @@ Local Ghost via `docker compose -f docker-compose.dev.yml up -d` — see README 
 
 ## Ghost Internals
 
-- Paywall gate: `aside.gh-post-upgrade-cta` (server-rendered, not Portal iframe)
+- Paywall gate: fallback chain — `aside.gh-post-upgrade-cta` → `.content-cta` → `.post-sneak-peek`. Override via `data-gl4g-gate` on script tag
 - Content container: fallback chain — `section.gh-content` → `article.post` → `article` → `.content` (latter three require unique match). Override via `data-gl4g-content` on script tag. Server-side extraction uses same chain.
 - Theme bar: `data-gl4g-bar="my-bar-class"` on script tag — if `.my-bar-class` exists in DOM, its innerHTML is replaced instead of creating a new bar element
 - Post detection: `body.post-template` class from `{{body_class}}` helper
