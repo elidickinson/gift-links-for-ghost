@@ -183,6 +183,37 @@ describe('session refresh', () => {
     expect(fresh.gifter_name).toBe('Bob');
   });
 
+  it('uses per-link ttl_days over global DEFAULT_TTL_DAYS', async () => {
+    // Link with 7-day TTL created 10 days ago — should be expired
+    const tenDaysAgo = Date.now() - 10 * 86400000;
+    await env.DB.prepare(
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('short-ttl', 'https://example.com/post/', 'a@b.com', 'Alice', 7, tenDaysAgo).run();
+
+    // Link with 30-day TTL created 10 days ago — should survive
+    await env.DB.prepare(
+      'INSERT INTO gift_links (token, url, email, gifter_name, ttl_days, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind('long-ttl', 'https://example.com/post/', 'b@c.com', 'Bob', 30, tenDaysAgo).run();
+
+    // Link with no per-link TTL created 10 days ago — uses DEFAULT_TTL_DAYS (14), should survive
+    await env.DB.prepare(
+      'INSERT INTO gift_links (token, url, email, gifter_name, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind('default-ttl', 'https://example.com/post/', 'c@d.com', 'Charlie', tenDaysAgo).run();
+
+    await handleScheduled(env);
+
+    const short = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('short-ttl').first();
+    const long = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('long-ttl').first();
+    const def = await env.DB.prepare('SELECT * FROM gift_links WHERE token = ?').bind('default-ttl').first();
+
+    expect(short.expired_at).not.toBeNull();
+    expect(short.email).toBe('');
+    expect(long.expired_at).toBeNull();
+    expect(long.email).toBe('b@c.com');
+    expect(def.expired_at).toBeNull();
+    expect(def.email).toBe('c@d.com');
+  });
+
   it('reinstated gift link with blanked PII still redeems', async () => {
     // Simulate a link that was expired (PII blanked) then reinstated
     await env.DB.prepare(

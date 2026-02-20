@@ -38,7 +38,7 @@ enabled = true
 region = "aws:us-east-1"
 
 [vars]
-GIFT_TTL_DAYS = "14"
+DEFAULT_TTL_DAYS = "14"
 DEFAULT_MAX_VIEWS = "0"
 MAX_REFRESH_FAILURES = "5"
 BOT_EMAIL = "bot@giftlinks.net"
@@ -49,7 +49,7 @@ BOT_EMAIL = "bot@giftlinks.net"
 # Deploy: wrangler deploy --env staging
 # Secrets: wrangler secret put ADMIN_PASSWORD --env staging
 [env.staging]
-vars = { GIFT_TTL_DAYS = "14", DEFAULT_MAX_VIEWS = "0", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@giftlinks.net" }
+vars = { DEFAULT_TTL_DAYS = "14", DEFAULT_MAX_VIEWS = "0", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@giftlinks.net" }
 
 [[env.staging.d1_databases]]
 binding = "DB"

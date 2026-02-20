@@ -12,6 +12,8 @@
   const CONTENT_SELECTOR = document.querySelector('script[data-gl4g-content]')?.dataset.gl4gContent || null;
   const maxViewsAttr = document.querySelector('script[data-gl4g-max-views]')?.dataset.gl4gMaxViews;
   const MAX_VIEWS = maxViewsAttr !== undefined ? parseInt(maxViewsAttr, 10) : null;
+  const ttlDaysAttr = document.querySelector('script[data-gl4g-ttl-days]')?.dataset.gl4gTtlDays;
+  const TTL_DAYS = ttlDaysAttr !== undefined ? parseInt(ttlDaysAttr, 10) : null;
 
   // Paywall gate detection with fallback chain
   function findPaywallGate() {
@@ -291,6 +293,7 @@
         gifter_name: getMemberName(jwt),
       };
       if (MAX_VIEWS !== null) createBody.max_views = MAX_VIEWS;
+      if (TTL_DAYS !== null) createBody.ttl_days = TTL_DAYS;
       const response = await retryFetch(`${API_BASE}/api/gift-link/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

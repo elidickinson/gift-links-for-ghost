@@ -586,6 +586,70 @@ describe('API', () => {
     expect(row.max_views).toBeNull();
   });
 
+  it('stores ttl_days on gift link creation', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        ttl_days: 7,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT ttl_days FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.ttl_days).toBe(7);
+  });
+
+  it('falls back to DEFAULT_TTL_DAYS when ttl_days not sent', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    // DEFAULT_TTL_DAYS is "14" in wrangler.toml
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT ttl_days FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.ttl_days).toBe(14);
+  });
+
+  it('ignores invalid ttl_days values', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        ttl_days: -5,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT ttl_days FROM gift_links WHERE token = ?').bind(token).first();
+    // Invalid value falls back to DEFAULT_TTL_DAYS (14)
+    expect(row.ttl_days).toBe(14);
+  });
+
   it('records null referer for invalid referer header', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 

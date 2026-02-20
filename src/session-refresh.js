@@ -46,12 +46,11 @@ export async function handleScheduled(env) {
     }
   }
 
-  const ttlDays = parseInt(env.GIFT_TTL_DAYS) || 14;
-  const cutoff = Date.now() - ttlDays * 24 * 60 * 60 * 1000;
+  const defaultTtlDays = parseInt(env.DEFAULT_TTL_DAYS) || 14;
   const now = Date.now();
   const { meta } = await env.DB.prepare(
-    "UPDATE gift_links SET expired_at = ?, email = '', gifter_name = '' WHERE created_at < ? AND expired_at IS NULL"
-  ).bind(now, cutoff).run();
+    "UPDATE gift_links SET expired_at = ?, email = '', gifter_name = '' WHERE expired_at IS NULL AND created_at < ? - COALESCE(ttl_days, ?) * 86400000"
+  ).bind(now, now, defaultTtlDays).run();
   if (meta.changes > 0) {
     log.info('cron: expired', meta.changes, 'gift links');
   }

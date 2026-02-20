@@ -1,0 +1,1 @@
+ALTER TABLE gift_links ADD COLUMN ttl_days INTEGER DEFAULT NULL;

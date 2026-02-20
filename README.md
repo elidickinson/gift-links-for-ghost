@@ -35,7 +35,8 @@ Update `wrangler.toml` vars:
 | Variable | Default | Description |
 |---|---|---|
 | `BOT_EMAIL` | — | Email address of the bot member in Ghost |
-| `GIFT_TTL_DAYS` | `14` | How long gift links remain valid |
+| `DEFAULT_TTL_DAYS` | `14` | How long gift links remain valid (days) |
+| `DEFAULT_MAX_VIEWS` | `0` | Max redemptions per link (0 = unlimited) |
 
 ### 3. Deploy
 
@@ -72,9 +73,11 @@ These are deliberate decisions, informed by how NYT, Washington Post, Bloomberg,
 
 **No monthly quota (yet).** Every major newspaper limits subscribers to 5–20 gift links per month. We don't enforce this yet, though usage can be monitored in the admin dashboard.
 
-**Optional per-link redemption limit.** Site admins can add `data-gl4g-max-views="10"` to the script tag to cap how many times each gift link can be viewed. The limit is stored per-link at creation time. Without it, links are unlimited until they expire.
+**Optional per-link redemption limit.** Site admins can add `data-gl4g-max-views="10"` to the script tag to cap how many times each gift link can be viewed. The limit is stored per-link at creation time. Without it, links use the `DEFAULT_MAX_VIEWS` setting (0 = unlimited).
 
-**Links expire after 14 days, then soft-delete.** Expired links are marked inactive (not deleted) so analytics and admin views preserve the full history. The TTL is configurable via `GIFT_TTL_DAYS`.
+**Optional per-link TTL.** Site admins can add `data-gl4g-ttl-days="7"` to the script tag to override the default expiry. The TTL is stored per-link at creation time. Without it, links use the `DEFAULT_TTL_DAYS` setting (default 14).
+
+**Links expire then soft-delete.** Expired links are marked inactive (not deleted) so analytics and admin views preserve the full history.
 
 **No link revocation (yet).** Once created, a gift link is valid until expiry. Beehiiv is the only platform with explicit revocation. Planned for a future release.
 
