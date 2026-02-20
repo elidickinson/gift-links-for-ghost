@@ -36,7 +36,7 @@ Local Ghost via `docker compose -f docker-compose.dev.yml up -d` — see README 
 ## D1 Schema
 
 - `sessions`: keyed by `origin` (e.g. `https://ghost.eli.pizza`), stores `cookies` + `created_at`
-- `gift_links`: keyed by `token`, stores `url` (full post URL) + `email` + `gifter_name` + `max_views` (nullable, NULL = unlimited) + `created_at`
+- `gift_links`: keyed by `token`, stores `url` (full post URL) + `email` + `gifter_name` + `max_views` (nullable, NULL = unlimited, 0 treated as unlimited) + `created_at`
 - `link_views`: tracks gift link redemptions (referer, country, timestamp)
 - Session lookup from gift link: `new URL(metadata.url).origin` → sessions PK
 

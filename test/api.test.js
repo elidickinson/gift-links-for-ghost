@@ -523,12 +523,52 @@ describe('API', () => {
     }
   });
 
+  it('treats max_views 0 as unlimited', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+        max_views: 0,
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.max_views).toBeNull();
+  });
+
+  it('falls back to DEFAULT_MAX_VIEWS when max_views not sent', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    // DEFAULT_MAX_VIEWS is "0" in wrangler.toml → unlimited
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwt,
+        url: 'https://www.example.com/my-post/',
+        gifter_name: 'Alice',
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    const { token } = await createResponse.json();
+    const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
+    expect(row.max_views).toBeNull();
+  });
+
   it('ignores invalid max_views values on creation', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 
     const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
-
-    // Non-integer max_views should be treated as null (unlimited)
     const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -542,8 +582,6 @@ describe('API', () => {
 
     expect(createResponse.status).toBe(200);
     const { token } = await createResponse.json();
-
-    // Verify it was stored as null
     const row = await env.DB.prepare('SELECT max_views FROM gift_links WHERE token = ?').bind(token).first();
     expect(row.max_views).toBeNull();
   });

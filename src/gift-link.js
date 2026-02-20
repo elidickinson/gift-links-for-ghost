@@ -27,13 +27,21 @@ export async function handleCreate(request, env) {
     );
   }
 
-  const parsedMaxViews = (typeof max_views === 'number' && max_views > 0 && Number.isInteger(max_views)) ? max_views : null;
+  const parsedMaxViews = parseMaxViews(max_views, env.DEFAULT_MAX_VIEWS);
   const token = await createGiftToken(env, { url, email, gifter_name, max_views: parsedMaxViews });
   log.info('create', { email, url });
 
   return Response.json({ token }, {
     headers: corsHeaders(),
   });
+}
+
+// Returns a positive integer for a view limit, or null for unlimited.
+// 0 explicitly means unlimited. Missing/invalid falls back to the env default.
+export function parseMaxViews(value, envDefault) {
+  const v = typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+  const effective = v !== undefined ? v : parseInt(envDefault, 10) || 0;
+  return effective > 0 ? effective : null;
 }
 
 async function verifyIdentityToken(token, origin, env) {
