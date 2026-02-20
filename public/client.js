@@ -180,7 +180,7 @@
       return;
     }
 
-    const loadingBar = showBar(container, '<span class="gl4g-spinner"></span>' + S.loading_text, 'info');
+    showBar(container, '<span class="gl4g-spinner"></span>' + S.loading_text, 'info');
 
     try {
       const fetchBody = { token, url: location.href.split('?')[0] };
@@ -206,8 +206,6 @@
     } catch (error) {
       console.error('[gl4g] Redeem failed:', error);
       showBar(container, S.error_text, 'error');
-    } finally {
-      loadingBar.hidden = true;
     }
   }
 
@@ -357,22 +355,22 @@
   // — Shared UI —
 
   function showBar(container, html, type) {
-    // Theme-placed bar: use existing element if data-gl4g-bar specifies a selector
     const barSelector = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
     const existing = barSelector && document.querySelector(barSelector);
+    let bar;
+
     if (existing) {
-      existing.classList.remove('gl4g-info', 'gl4g-error', 'gl4g-success');
-      existing.classList.add(`gl4g-${type}`);
-      existing.innerHTML = html;
-      existing.hidden = !existing.textContent.trim();
-      return existing;
+      bar = existing;
+      bar.classList.remove('gl4g-info', 'gl4g-error', 'gl4g-success');
+      bar.classList.add(`gl4g-${type}`);
+    } else {
+      bar = document.createElement('div');
+      bar.className = `gl4g-bar gl4g-${type}`;
+      if (container) container.prepend(bar);
     }
 
-    const bar = document.createElement('div');
-    bar.className = `gl4g-bar gl4g-${type}`;
     bar.innerHTML = html;
     bar.hidden = !bar.textContent.trim();
-    if (container) container.prepend(bar);
     return bar;
   }
 
