@@ -110,7 +110,7 @@
       .gl4g-copy-btn:hover {
         background: #f0f0f0;
       }
-      .gl4g-button {
+      .gl4g-button--float {
         position: fixed;
         bottom: 24px;
         left: 24px;
@@ -118,7 +118,6 @@
         box-shadow: 0 2px 8px rgba(0,0,0,.2);
         border: none;
         font: inherit;
-        cursor: pointer;
       }
       .gl4g-button:disabled {
         opacity: 0.5;
@@ -208,7 +207,7 @@
 
     // Post is paywalled and user has access — show gift button
     const button = document.createElement('button');
-    button.className = 'gl4g-button gh-button';
+    button.className = 'gl4g-button gl4g-button--float gh-button';
     button.textContent = S.button_text;
     button.addEventListener('click', handleGiftClick);
     document.body.appendChild(button);

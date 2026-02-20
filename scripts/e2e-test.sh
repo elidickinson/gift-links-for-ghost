@@ -225,6 +225,92 @@ sleep 3
 TREE=$(br view-tree 2>&1)
 assert_page "$TREE" "for paying subscribers only" "Paywall gate still shown for bogus token"
 
+# -- 11. Theme-placed button --
+
+echo "==> Testing theme-placed button"
+
+# Authenticate with Ghost Admin API
+ADMIN_COOKIE=$(mktemp)
+ADMIN_EMAIL="${GHOST_ADMIN_EMAIL:-admin@example.com}"
+ADMIN_PASSWORD="${GHOST_ADMIN_PASSWORD:-Tr0ub4dor&3horse}"
+scripts/reset-ratelimit.sh
+curl -s -o /dev/null -c "$ADMIN_COOKIE" -X POST "$GHOST_URL/ghost/api/admin/session" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $GHOST_URL" \
+  -d "{\"username\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}"
+
+# Inject theme button via code injection (appended to existing client.js script tag)
+INJECT_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
+import json, os
+worker = os.environ["WORKER_URL"]
+script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' defer></script>"
+button = '<div class="gl4g-button-wrapper" style="display:none"><a href="#" class="gl4g-button gh-btn">Gift this article</a></div>'
+print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script + button}]}))
+PYEOF
+)
+curl -s -o /dev/null -b "$ADMIN_COOKIE" -X PUT "$GHOST_URL/ghost/api/admin/settings/" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $GHOST_URL" \
+  -d "$INJECT_JSON"
+
+# Sign in as paid member (fresh browser)
+br stop > /dev/null 2>&1 || true
+br start --headless > /dev/null 2>&1
+
+curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
+INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
+curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
+
+MAGIC_LINK=""
+for i in $(seq 1 10); do
+  sleep 0.5
+  MESSAGE_ID=$(curl -s "$MAILPIT_URL/api/v1/messages" \
+    | grep -o '"ID":"[^"]*"' | head -1 | cut -d'"' -f4)
+  if [ -n "$MESSAGE_ID" ]; then
+    MAGIC_LINK=$(curl -s "$MAILPIT_URL/api/v1/message/$MESSAGE_ID" \
+      | grep -o 'http[^"]*\/members\/[?]token=[A-Za-z0-9_-]*\\u0026action=signin' \
+      | sed 's/\\u0026/\&/' | head -1)
+    break
+  fi
+done
+test -n "$MAGIC_LINK" || fail "No magic link for theme button test"
+br goto "$MAGIC_LINK" > /dev/null 2>&1
+sleep 2
+
+# Visit paywalled post — client.js should find theme button, not create floating one
+br goto "${GHOST_URL}${POST_PATH}" > /dev/null 2>&1
+sleep 3
+
+# Wrapper should be unhidden
+WRAPPER_DISPLAY=$(br eval "document.querySelector('.gl4g-button-wrapper')?.style.display" 2>&1)
+assert_contains "$WRAPPER_DISPLAY" '""' "Theme button wrapper unhidden"
+
+# Only one .gl4g-button should exist (the theme one, no auto-created floating button)
+BUTTON_COUNT=$(br eval "document.querySelectorAll('.gl4g-button').length" 2>&1)
+assert_contains "$BUTTON_COUNT" "1" "Single theme button (no duplicate)"
+
+# Click handler should work (button gets disabled during creation)
+br click ".gl4g-button" > /dev/null 2>&1
+sleep 1
+BUTTON_DISABLED=$(br eval "document.querySelector('.gl4g-button')?.disabled" 2>&1)
+assert_contains "$BUTTON_DISABLED" "true" "Theme button click handler attached"
+
+# Restore original code injection (remove theme button)
+RESTORE_JSON=$(WORKER_URL="$WORKER_URL" python3 << 'PYEOF'
+import json, os
+worker = os.environ["WORKER_URL"]
+script = f"<script src='{worker}/client.js' data-gl4g-api='{worker}' defer></script>"
+print(json.dumps({"settings": [{"key": "codeinjection_foot", "value": script}]}))
+PYEOF
+)
+curl -s -o /dev/null -b "$ADMIN_COOKIE" -X PUT "$GHOST_URL/ghost/api/admin/settings/" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $GHOST_URL" \
+  -d "$RESTORE_JSON"
+rm -f "$ADMIN_COOKIE"
+
 # -- Done --
 
 echo ""
