@@ -21,8 +21,13 @@ export async function refreshSession(origin, botEmail, db = null) {
 
   const integrityResponse = await fetch(`${origin}/members/api/integrity-token`);
   if (!integrityResponse.ok) {
-    throw new Error(`Integrity token request failed for ${origin}: HTTP ${integrityResponse.status}`);
+    const hint = integrityResponse.status === 404
+      ? 'Wrong URL?'
+      : `HTTP ${integrityResponse.status}`;
+    throw new Error(`Could not reach ${origin} members API. ${hint}`);
   }
+  // Follow redirects (e.g. coyotemedia.org -> www.coyotemedia.org)
+  origin = new URL(integrityResponse.url).origin;
   const integrityBody = await integrityResponse.text();
   if (!integrityBody) {
     throw new Error(`No integrity token returned by ${origin}`);
@@ -31,14 +36,14 @@ export async function refreshSession(origin, botEmail, db = null) {
 
   const magicLinkResponse = await fetch(`${origin}/members/api/send-magic-link`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Ghost-Integrity': integrityToken,
-    },
-    body: JSON.stringify({ email: botEmail, emailType: 'signin' }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: botEmail, emailType: 'signin', integrityToken }),
   });
   if (!magicLinkResponse.ok) {
-    throw new Error(`Magic link request failed for ${origin}: HTTP ${magicLinkResponse.status}. Is ${botEmail} a member of this site?`);
+    const hint = magicLinkResponse.status === 400
+      ? `Is ${botEmail} a member of this site?`
+      : `HTTP ${magicLinkResponse.status}`;
+    throw new Error(`Magic link request failed for ${origin}. ${hint}`);
   }
 
   if (db) {

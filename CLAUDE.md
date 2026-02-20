@@ -52,7 +52,7 @@ Local Ghost via `docker compose -f docker-compose.dev.yml up -d` — see README 
 - Brute-force protection on login — multiple failed attempts cause 403s
 - Session refresh: daily cron in `src/session-refresh.js`, >150 days triggers magic link re-request
 - Integrity token: `GET /members/api/integrity-token`
-- Magic link request: `POST /members/api/send-magic-link` with `X-Ghost-Integrity` header
+- Magic link request: `POST /members/api/send-magic-link` with `integrityToken` in JSON body
 
 ## workerd / vitest-pool-workers Gotchas
 

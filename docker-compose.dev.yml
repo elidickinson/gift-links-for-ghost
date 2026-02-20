@@ -24,6 +24,7 @@ services:
       mail__transport: SMTP
       mail__options__host: mailpit
       mail__options__port: 1025
+      verifyRequestIntegrity: true
 
   mailpit:
     image: axllent/mailpit:latest

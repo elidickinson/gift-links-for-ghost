@@ -126,8 +126,7 @@ curl -s -X DELETE "$MAILPIT_URL/api/v1/messages" > /dev/null
 INTEGRITY_TOKEN=$(curl -s "$GHOST_URL/members/api/integrity-token")
 curl -s -o /dev/null -X POST "$GHOST_URL/members/api/send-magic-link" \
   -H "Content-Type: application/json" \
-  -H "X-Ghost-Integrity: $INTEGRITY_TOKEN" \
-  -d '{"email":"paid@example.com","emailType":"signin"}'
+  -d "{\"email\":\"paid@example.com\",\"emailType\":\"signin\",\"integrityToken\":\"$INTEGRITY_TOKEN\"}"
 
 # Poll Mailpit for magic link (parsed JSON — raw body is base64-encoded)
 MAGIC_LINK=""
