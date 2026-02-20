@@ -191,7 +191,7 @@
 
       if (response.ok) {
         const { html, gifter_name } = await response.json();
-        loadingBar.remove();
+        loadingBar.hidden = true;
         paywallGate.remove();
         container.innerHTML = html;
         injectBanner(container, gifter_name);
@@ -199,13 +199,13 @@
       } else {
         const { error } = await response.json();
         console.error(`[gl4g] Redeem failed: ${response.status} ${error}`);
-        loadingBar.remove();
+        loadingBar.hidden = true;
         const msg = error === 'expired' ? S.expired_text : error === 'redemption_limit' ? S.limit_text : S.error_text;
         showBar(container, msg, 'error');
       }
     } catch (error) {
       console.error('[gl4g] Redeem failed:', error);
-      loadingBar.remove();
+      loadingBar.hidden = true;
       showBar(container, S.error_text, 'error');
     }
   }
@@ -363,7 +363,8 @@
     const barSelector = document.querySelector('script[data-gl4g-bar]')?.dataset.gl4gBar;
     const existing = barSelector && document.querySelector(barSelector);
     if (existing) {
-      existing.className = `${existing.className} gl4g-bar gl4g-${type}`;
+      existing.classList.remove('gl4g-info', 'gl4g-error', 'gl4g-success');
+      existing.classList.add(`gl4g-${type}`);
       existing.innerHTML = html;
       existing.hidden = !existing.textContent.trim();
       if (autoRemoveMs) setTimeout(() => existing.remove(), autoRemoveMs);
