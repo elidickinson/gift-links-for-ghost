@@ -299,6 +299,7 @@
     const bar = document.createElement('div');
     bar.className = `gl4g-bar gl4g-${type}`;
     bar.innerHTML = html;
+    bar.hidden = !bar.textContent.trim();
     if (container) container.prepend(bar);
     if (autoRemoveMs) setTimeout(() => bar.remove(), autoRemoveMs);
     return bar;
