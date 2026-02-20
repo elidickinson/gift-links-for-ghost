@@ -10,7 +10,10 @@ import { log } from './log.js';
 // Fallback chain for themes that don't use Ghost's default section.gh-content.
 // Uses css-select on an htmlparser2 DOM — handles nesting, attribute quoting, etc.
 const CONTENT_SELECTORS = [
-  { selector: 'section.gh-content', unique: false },
+  { selector: '.gh-content', unique: false },       // Ghost default (Casper)
+  { selector: '.post-content', unique: true },       // Attila, Fizzy, Fueko, StayPuft, Caffeine, mnml, Kaldorei
+  { selector: '.post__content', unique: true },      // 404 Media
+  { selector: '.post-body', unique: true },          // Simply, Mapache
   { selector: 'article.post', unique: true },
   { selector: 'article', unique: true },
   { selector: '.content', unique: true },
@@ -105,9 +108,11 @@ export async function handleFetchContent(request, env, ctx) {
 // Ghost always injects CTA styles, but only renders the element when the visitor
 // lacks access — so a DOM element match means the paywall is visible.
 const PAYWALL_SELECTORS = [
-  'aside.gh-post-upgrade-cta',   // Ghost default (Casper)
-  '.content-cta',                // common theme pattern
-  '.post-sneak-peek',            // truncated content indicator
+  '.gh-post-upgrade-cta',   // Ghost default (Casper)
+  '.gh-cta',                // Solo, Digest (official)
+  '.single-cta',            // Edition (official)
+  '.content-cta',           // common theme pattern
+  '.post-sneak-peek',       // truncated content indicator
 ];
 
 export function isPaywalled(doc) {

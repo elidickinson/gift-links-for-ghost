@@ -17,7 +17,7 @@
     const custom = document.querySelector('script[data-gl4g-gate]')?.dataset.gl4gGate;
     if (custom) return document.querySelector(custom);
 
-    for (const sel of ['aside.gh-post-upgrade-cta', '.content-cta', '.post-sneak-peek']) {
+    for (const sel of ['.gh-post-upgrade-cta', '.gh-cta', '.single-cta', '.content-cta', '.post-sneak-peek']) {
       const el = document.querySelector(sel);
       if (el) return el;
     }
@@ -35,10 +35,10 @@
       return null;
     }
 
-    const ghContent = document.querySelector('section.gh-content');
+    const ghContent = document.querySelector('.gh-content');
     if (ghContent) return ghContent;
 
-    for (const sel of ['article.post .content', 'article.post', 'article', '.content']) {
+    for (const sel of ['.post-content', '.post__content', '.post-body', 'article.post', 'article', '.content']) {
       const matches = document.querySelectorAll(sel);
       if (matches.length === 1) return matches[0];
     }
