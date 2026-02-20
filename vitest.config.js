@@ -8,6 +8,9 @@ export default defineWorkersConfig({
       workers: {
         wrangler: { configPath: './wrangler.toml' },
         singleWorker: true,
+        miniflare: {
+          bindings: { ADMIN_PASSWORD: 'test-password' },
+        },
       },
     },
   },

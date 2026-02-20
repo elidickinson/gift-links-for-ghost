@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { extractContent } from '../src/gift-content.js';
+import { parseDocument } from 'htmlparser2';
+import { extractContent, isPaywalled } from '../src/gift-content.js';
 import accessFixture from './fixtures/ghost-post-with-access.html?raw';
 import paywallFixture from './fixtures/ghost-post-with-paywall.html?raw';
 
@@ -140,5 +141,37 @@ describe('extractContent', () => {
     expect(html).toContain('<img src="pic.jpg"');
     expect(html).toContain('alt=');
     expect(html).toContain('<hr>');
+  });
+});
+
+describe('isPaywalled', () => {
+  it('detects Ghost default paywall gate (aside.gh-post-upgrade-cta)', () => {
+    const doc = parseDocument('<html><body><aside class="gh-post-upgrade-cta"><p>Subscribe</p></aside></body></html>');
+    expect(isPaywalled(doc)).toBe(true);
+  });
+
+  it('detects content-cta paywall pattern', () => {
+    const doc = parseDocument('<html><body><div class="content-cta"><p>Sign up</p></div></body></html>');
+    expect(isPaywalled(doc)).toBe(true);
+  });
+
+  it('detects post-sneak-peek paywall pattern', () => {
+    const doc = parseDocument('<html><body><div class="post-sneak-peek"><p>Preview</p></div></body></html>');
+    expect(isPaywalled(doc)).toBe(true);
+  });
+
+  it('returns false for page without paywall', () => {
+    const doc = parseDocument('<html><body><section class="gh-content"><p>Full article</p></section></body></html>');
+    expect(isPaywalled(doc)).toBe(false);
+  });
+
+  it('detects paywall in real Ghost fixture', () => {
+    const doc = parseDocument(paywallFixture);
+    expect(isPaywalled(doc)).toBe(true);
+  });
+
+  it('no paywall in real Ghost fixture with access', () => {
+    const doc = parseDocument(accessFixture);
+    expect(isPaywalled(doc)).toBe(false);
   });
 });

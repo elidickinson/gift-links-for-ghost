@@ -101,7 +101,7 @@ const PAYWALL_SELECTORS = [
   '.post-sneak-peek',            // truncated content indicator
 ];
 
-function isPaywalled(doc) {
+export function isPaywalled(doc) {
   return PAYWALL_SELECTORS.some(sel => selectAll(sel, doc).length > 0);
 }
 

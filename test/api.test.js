@@ -349,6 +349,94 @@ describe('API', () => {
     expect(view.country).toBeNull();
   });
 
+  it('returns fetch_failed when bot session sees paywall', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt, url: 'https://www.example.com/my-post/', gifter_name: 'Alice' }),
+    });
+    const { token } = await createResponse.json();
+
+    // Ghost returns a paywalled page (bot session expired)
+    const paywallHtml = `<html><body>
+      <section class="gh-content">
+        <p>Preview paragraph</p>
+        <aside class="gh-post-upgrade-cta">
+          <div class="gh-post-upgrade-cta-content"><h2>This post is for paying subscribers only</h2></div>
+        </aside>
+      </section>
+    </body></html>`;
+
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, paywallHtml, { headers: { 'Content-Type': 'text/html' } });
+
+    const redeemResponse = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+
+    expect(redeemResponse.status).toBe(502);
+    expect(await redeemResponse.json()).toEqual({ error: 'fetch_failed' });
+  });
+
+  it('returns fetch_failed when Ghost returns non-200', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt, url: 'https://www.example.com/my-post/', gifter_name: 'Alice' }),
+    });
+    const { token } = await createResponse.json();
+
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(500, 'Internal Server Error');
+
+    const redeemResponse = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+
+    expect(redeemResponse.status).toBe(502);
+    expect(await redeemResponse.json()).toEqual({ error: 'fetch_failed' });
+  });
+
+  it('returns fetch_failed when no content selector matches', async () => {
+    await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
+
+    const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
+    const createResponse = await SELF.fetch('https://worker/api/gift-link/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt, url: 'https://www.example.com/my-post/', gifter_name: 'Alice' }),
+    });
+    const { token } = await createResponse.json();
+
+    // Page with no matching content container
+    fetchMock.get('https://www.example.com')
+      .intercept({ method: 'GET', path: '/my-post/' })
+      .reply(200, '<html><body><div class="unknown-theme"><p>Content</p></div></body></html>', {
+        headers: { 'Content-Type': 'text/html' },
+      });
+
+    const redeemResponse = await SELF.fetch('https://worker/api/gift-link/fetch-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+    });
+
+    expect(redeemResponse.status).toBe(502);
+    expect(await redeemResponse.json()).toEqual({ error: 'fetch_failed' });
+  });
+
   it('records null referer for invalid referer header', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 
