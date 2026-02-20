@@ -6,15 +6,19 @@ import { log } from './log.js';
 
 // Regex over HTMLRewriter because we need the exact original HTML, not a reconstruction.
 // Fallback chain for themes that don't use Ghost's default section.gh-content.
+//
+// Class matching: \b treats hyphens as word boundaries, so \bpost\b falsely matches
+// "post-card". Use (?<=[ "]) and (?=[ "]) to require space or quote boundaries,
+// ensuring exact CSS class matching within class="..." attributes.
 const CONTENT_PATTERNS = [
   // Ghost default: section.gh-content (accept first match — specific enough)
   { pattern: /<section[^>]*class="[^"]*\bgh-content\b[^"]*"[^>]*>([\s\S]*?)<\/section>/, unique: false },
-  // article with "post" class
-  { pattern: /<article[^>]*class="[^"]*\bpost\b[^"]*"[^>]*>([\s\S]*?)<\/article>/, unique: true },
+  // article with exact "post" class (not post-card, post-access-tiers, etc.)
+  { pattern: /<article[^>]*class="(?:[^"]*\s)?post(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/article>/, unique: true },
   // single article element
   { pattern: /<article[^>]*>([\s\S]*?)<\/article>/, unique: true },
-  // element with "content" class (backreference matches closing tag)
-  { pattern: /<(\w+)[^>]*class="[^"]*\bcontent\b[^"]*"[^>]*>([\s\S]*?)<\/\1>/, unique: true },
+  // element with exact "content" class (not content-width, content-cta, etc.)
+  { pattern: /<(\w+)[^>]*class="(?:[^"]*\s)?content(?:\s[^"]*)?"[^>]*>([\s\S]*?)<\/\1>/, unique: true },
 ];
 
 export function extractContent(html) {
@@ -22,7 +26,6 @@ export function extractContent(html) {
     const matches = [...html.matchAll(new RegExp(pattern, 'g'))];
     if (matches.length === 0) continue;
     if (unique && matches.length !== 1) continue;
-    // Last capture group has the content
     return matches[0][matches[0].length - 1];
   }
   return '';
@@ -67,7 +70,7 @@ export async function handleFetchContent(request, env, ctx) {
   }
 
   if (!result.html) {
-    log.error('redeem: ghost fetch failed', { url, durationMs });
+    log.error('redeem: content extraction failed', { url, durationMs, pageBytes: result.pageBytes });
     return Response.json({ error: 'fetch_failed' }, { status: 502, headers: corsHeaders() });
   }
 
@@ -81,6 +84,14 @@ export async function handleFetchContent(request, env, ctx) {
   });
 }
 
+// Paywall gate detection — if any of these match as HTML elements (not CSS), the
+// bot session likely expired and the page is showing a paywall.
+const PAYWALL_PATTERNS = [
+  /<aside[^>]*gh-post-upgrade-cta/,     // Ghost default (Casper)
+  /<div[^>]*class="[^"]*\bcontent-cta\b/, // common theme pattern
+  /<div[^>]*class="[^"]*\bpost-sneak-peek\b/, // truncated content indicator
+];
+
 async function fetchGhostContent(url, sessionCookies) {
   const response = await fetch(url, {
     headers: { 'Cookie': sessionCookies },
@@ -88,18 +99,18 @@ async function fetchGhostContent(url, sessionCookies) {
 
   if (!response.ok) {
     log.warn('ghost fetch failed', { url, status: response.status });
-    return { html: null };
+    return { html: null, pageBytes: 0 };
   }
 
   const pageHtml = await response.text();
 
   // Ghost always injects CTA styles, but only renders the element when
   // the visitor lacks access. Match an actual HTML element, not the CSS.
-  if (/<aside[^>]*gh-post-upgrade-cta/.test(pageHtml)) {
-    return { html: null, paywalled: true };
+  if (PAYWALL_PATTERNS.some(p => p.test(pageHtml))) {
+    return { html: null, paywalled: true, pageBytes: pageHtml.length };
   }
 
-  return { html: extractContent(pageHtml) };
+  return { html: extractContent(pageHtml), pageBytes: pageHtml.length };
 }
 
 function normalizeReferer(refererHeader) {

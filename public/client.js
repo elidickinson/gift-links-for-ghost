@@ -159,7 +159,10 @@
   // — Gift Link Redemption —
 
   async function redeemGiftLink(token) {
-    if (!paywallGate) return; // Post is public or user has access
+    if (!paywallGate) {
+      console.info('[gl4g] Gift token present but no paywall gate found — post may be public');
+      return;
+    }
 
     const container = findContentContainer();
     if (!container) {
@@ -203,7 +206,10 @@
   // — Gift Button (for paid members) —
 
   async function maybeShowGiftButton() {
-    if (paywallGate) return; // User doesn't have access
+    if (paywallGate) {
+      console.info('[gl4g] Paywall gate detected — user lacks access, no gift button');
+      return;
+    }
 
     if (!findContentContainer()) {
       console.warn('[gl4g] No content container found — gift button hidden');
@@ -212,7 +218,10 @@
 
     // Check if user is logged in
     const sessionResponse = await fetch('/members/api/session', { credentials: 'same-origin' });
-    if (sessionResponse.status === 204 || !sessionResponse.ok) return;
+    if (sessionResponse.status === 204 || !sessionResponse.ok) {
+      console.info('[gl4g] No member session — gift button not shown');
+      return;
+    }
 
     // Check if post is paywalled via Content API
     const portalScript = document.querySelector('script[data-ghost]');
@@ -239,7 +248,10 @@
       console.error(`[gl4g] No post found for slug: ${slug}`);
       return;
     }
-    if (posts[0].access === true) return;
+    if (posts[0].access === true) {
+      console.info('[gl4g] Post is not paywalled — gift button not needed');
+      return;
+    }
 
     // Post is paywalled and user has access — show gift button
     const existing = document.querySelector('.gl4g-button');

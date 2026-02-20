@@ -46,4 +46,24 @@ describe('extractContent', () => {
     const html = extractContent('<html><body><div class="content"><p>Div content</p></div></body></html>');
     expect(html).toBe('<p>Div content</p>');
   });
+
+  it('matches exact class "post", not "post-card"', () => {
+    // Simulates coyotemedia.org: post-card sidebar articles + one article.post
+    const page = `<html><body>
+      <article class="post-card has-img"><p>Card 1</p></article>
+      <article class="post-card has-img"><p>Card 2</p></article>
+      <article class="post tag-food content post-access-tiers"><p>Real content</p></article>
+    </body></html>`;
+    const html = extractContent(page);
+    expect(html).toBe('<p>Real content</p>');
+  });
+
+  it('matches exact class "content", not "content-width"', () => {
+    const page = `<html><body>
+      <div class="social-share content-width"><p>Sidebar</p></div>
+      <div class="content"><p>Main content</p></div>
+    </body></html>`;
+    const html = extractContent(page);
+    expect(html).toBe('<p>Main content</p>');
+  });
 });
