@@ -62,7 +62,7 @@
 
 <h2>Setup</h2>
 <ol>
-  <li>In Ghost Admin, go to <strong>Members</strong> and create a new member with the email <strong>bot@giftlinks.net</strong>. Give it a <strong>complimentary subscription</strong> to a paid tier.</li>
+  <li>In Ghost Admin, go to <strong>Members</strong> and create a new member with the email <strong class="botemail">bot a&#x1D5CD; giftlinks.net</strong>. Give it a <strong>complimentary subscription</strong> to a paid tier.</li>
   <li>Enter your Ghost site URL below and click Connect. This sends the bot the sign-in email it needs to read your paywalled posts.<br>
   <form action="/api/setup" method="POST" style="margin-top: 8px; display: flex; gap: 8px;">
     <input name="url" type="text" placeholder="https://www.yourblog.com/" required style="flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
@@ -142,7 +142,10 @@
 <p><strong>Can a gift link be shared with multiple people?</strong> Yes. The link will work without limits until it expires or the max views limit is hit.</p>
 <p><strong>How do I uninstall?</strong> Remove the code injection line and delete the bot member from Ghost Admin.</p>
 <p><strong>Are you doing something sneaky with my content/data?</strong> No. See the <a href="/privacy">privacy policy</a>.</p>
-<p><strong>More questions?</strong> Email me <a href="mailto:eli@elidickinson.com">eli@elidickinson.com</a> or find me on Bluesky <a href="https://bsky.app/profile/eli.pizza">@eli.pizza</a></p>
+<p><strong>More questions?</strong> Email me
+        <a id="myemail">eli а&#x1D5CD; elidickinson do&#x1D5CD; com</a>
+        or find me on Bluesky <a href="https://bsky.app/profile/eli.pizza">@eli.pizza</a>
+</p>
 </div>
 
 <details id="config-details">
@@ -210,5 +213,17 @@ window.gl4g_strings = {
  By <a href="https://www.elidickinson.com/">Eli Dickinson</a> &middot; <a href="/privacy">Privacy Policy</a> &middot; A project of <a href="https://sidget.com">☁️ Sidget LLC</a>
 </footer>
 <br>
+<script>
+  var el = document.getElementById('myemail');
+  if(el) {
+    let addr = "eli"+`@elid`+"ickinson"+`.com`;
+    el.innerText = addr;
+    el.href = "mail"+"to:"+addr;
+  }
+  for (const el of document.getElementsByClassName("botemail")) {
+    let addr = "bot" + `@giftlinks` + ".net";
+    el.innerText = addr;
+  }
+</script>
 </body>
 </html>

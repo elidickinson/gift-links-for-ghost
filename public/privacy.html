@@ -28,7 +28,7 @@
 
 <h2>What we store</h2>
 <ul>
-  <li>If you invite bot@giftlinks.net as a member to your Ghost site, we store login details for that bot member so that it can fetch paywalled content on behalf of gift link recipients.</li>
+  <li>If you invite the bot account as a member to your Ghost site, we store login details for that bot member so that it can fetch paywalled content on behalf of gift link recipients.</li>
   <li>When a member creates a gift link, we store the post URL and the member's name and email (from their Ghost session token)</li>
   <li>When someone opens a gift link, we log the timestamp, country (from Cloudflare headers), and referring domain</li>
   <li>For debugging and operational purposes, we temporarily track all access requests (including IP address and browser information). These logs are automatically deleted after 7 days.</li>
@@ -44,11 +44,23 @@
 <p>This service runs on <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare Workers</a>. All data is stored in Cloudflare D1. No data is shared with or sold to anyone.</p>
 
 <h2>Contact</h2>
-<p>Questions? Email <a href="mailto:privacy@giftlinks.net">privacy@giftlinks.net</a>.</p>
+<p>Questions? Email <a class="privemail">privacy a&#x1D5CD; giftlinks.net</a>.</p>
 
 </main>
 <footer>
-<a href="/">&larr; Gift Links for Ghost</a>
+<a href="/">&larr; Gift Links for Ghost</a> &middot;
+By <a href="https://www.elidickinson.com/">Eli Dickinson</a> &middot; A project of <a href="https://sidget.com">☁️ Sidget LLC</a>
 </footer>
+<script>
+  for (const el of document.getElementsByClassName("privemail")) {
+    let addr = "privacy" + `@giftlinks` + ".net";
+    el.innerText = addr;
+    el.href = "mail"+"to:"+addr;
+  }
+  for (const el of document.getElementsByClassName("botemail")) {
+    let addr = "bot" + `@giftlinks` + ".net";
+    el.innerText = addr;
+  }
+</script>
 </body>
 </html>
