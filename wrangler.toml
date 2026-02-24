@@ -35,7 +35,7 @@ enabled = true
 
 [placement]
 # TODO: temporary placement hint to try to avoid problematic EWR datacenter
-region = "aws:us-east-1"
+region = "aws:us-east-2"
 
 [vars]
 DEFAULT_TTL_DAYS = "14"
