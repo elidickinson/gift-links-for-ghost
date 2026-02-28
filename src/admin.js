@@ -1,4 +1,5 @@
 import { escapeHtml } from './escape-html.js';
+import { GIT_SHA, GIT_MSG, DEPLOYED_AT } from './build-info.js';
 
 export async function handleAdmin(env) {
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -226,6 +227,10 @@ function renderPage(data) {
   </tr>`;
   }).join('')}
 </table>
+
+<p class="muted" style="margin-top: 32px; font-size: 12px;">
+  Deploy: <span class="mono">${escapeHtml(GIT_SHA)}</span> ${escapeHtml(GIT_MSG)} &mdash; ${escapeHtml(DEPLOYED_AT)}
+</p>
 
 </body>
 </html>`;
