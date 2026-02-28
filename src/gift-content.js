@@ -43,7 +43,7 @@ export function extractContent(html, customSelector) {
 }
 
 export async function handleFetchContent(request, env, ctx) {
-  const { token, url: rawUrl, content_selector } = await request.json();
+  const { token, url: rawUrl, content_selector, referrer } = await request.json();
   const url = new URL(rawUrl).href;
 
   const metadata = await lookupGiftToken(env, token);
@@ -96,7 +96,7 @@ export async function handleFetchContent(request, env, ctx) {
   const html = result.html;
 
   log.info('redeem', { token: token.slice(0, 6), url, durationMs, ...(content_selector && { content_selector }) });
-  ctx.waitUntil(recordView(env, token, request));
+  ctx.waitUntil(recordView(env, token, referrer, request));
 
   return Response.json({ html, gifter_name: escapeHtml(metadata.gifter_name) }, {
     headers: corsHeaders(),
@@ -140,17 +140,17 @@ async function fetchGhostContent(url, sessionCookies, contentSelector) {
   return { html: extractContent(pageHtml, contentSelector), pageBytes: pageHtml.length };
 }
 
-function normalizeReferer(refererHeader) {
-  if (!refererHeader) return null;
+function normalizeReferer(referer) {
+  if (!referer) return null;
   try {
-    return new URL(refererHeader).hostname.replace(/^www\./, '');
+    return new URL(referer).hostname.replace(/^www\./, '');
   } catch {
     return null;
   }
 }
 
-async function recordView(env, token, request) {
-  const refererDomain = normalizeReferer(request.headers.get('Referer'));
+async function recordView(env, token, referrer, request) {
+  const refererDomain = normalizeReferer(referrer);
   const country = request.headers.get('CF-IPCountry') || null;
   await env.DB.prepare(
     'INSERT INTO link_views (token, viewed_at, referer_domain, country) VALUES (?, ?, ?, ?)'

@@ -66,7 +66,7 @@ fail() {
 
 # Ghost Admin API session auth with 2FA support (gets verification code from Mailpit)
 ADMIN_EMAIL="${GHOST_ADMIN_EMAIL:-admin@example.com}"
-ADMIN_PASSWORD="${GHOST_ADMIN_PASSWORD:-Tr0ub4dor&3horse}"
+GHOST_ADMIN_PASSWORD="${GHOST_ADMIN_PASSWORD:-Tr0ub4dor&3horse}"
 ADMIN_COOKIE=""
 
 ghost_admin_login() {
@@ -77,7 +77,7 @@ ghost_admin_login() {
   LOGIN_RESP=$(curl -s -c "$ADMIN_COOKIE" -b "$ADMIN_COOKIE" -X POST "$GHOST_URL/ghost/api/admin/session" \
     -H "Content-Type: application/json" \
     -H "Origin: $GHOST_URL" \
-    -d "{\"username\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
+    -d "{\"username\":\"$ADMIN_EMAIL\",\"password\":\"$GHOST_ADMIN_PASSWORD\"}")
 
   if echo "$LOGIN_RESP" | grep -q "2FA"; then
     sleep 1
@@ -236,8 +236,12 @@ echo "==> Redeeming gift link via API"
 GIFT_TOKEN=$(echo "$GIFT_URL" | grep -o 'gift=[^&]*' | cut -d= -f2)
 REDEEM_BODY=$(curl -s -X POST "$WORKER_URL/api/gift-link/fetch-content" \
   -H "Content-Type: application/json" \
-  -d "{\"token\":\"$GIFT_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\"}")
+  -d "{\"token\":\"$GIFT_TOKEN\",\"url\":\"${GHOST_URL}${POST_PATH}\",\"referrer\":\"https://www.twitter.com/status/123\"}")
 assert_contains "$REDEEM_BODY" "premium content behind the paywall" "API returns premium content"
+
+# Verify referrer domain stored in activity log (worker admin page)
+ADMIN_HTML=$(curl -s -u "admin:${WORKER_ADMIN_PASSWORD:-test-password}" "$WORKER_URL/admin")
+assert_contains "$ADMIN_HTML" "twitter.com" "Referrer domain shown in admin activity log"
 
 # -- 8. Redeem in browser as anonymous visitor --
 # Must restart browser — httpOnly cookies can't be cleared via JS.

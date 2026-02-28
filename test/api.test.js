@@ -312,7 +312,7 @@ describe('API', () => {
     expect(result.message).toContain('No cached JWKS');
   });
 
-  it('strips www from referer domain in view analytics', async () => {
+  it('strips www from referrer domain in view analytics', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 
     const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
@@ -335,11 +335,8 @@ describe('API', () => {
 
     await SELF.fetch('https://worker/api/gift-link/fetch-content', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Referer': 'https://www.twitter.com/status/123',
-      },
-      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/', referrer: 'https://www.twitter.com/status/123' }),
     });
 
     // waitUntil runs synchronously in test env
@@ -671,7 +668,7 @@ describe('API', () => {
     expect(row.ttl_days).toBe(0);
   });
 
-  it('records null referer for invalid referer header', async () => {
+  it('records null referer for invalid referrer value', async () => {
     await seedSession('https://www.example.com', 'ghost-members-ssr=val; ghost-members-ssr.sig=sig');
 
     const jwt = await signedJwt('alice@example.com', 'https://www.example.com');
@@ -694,11 +691,8 @@ describe('API', () => {
 
     await SELF.fetch('https://worker/api/gift-link/fetch-content', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Referer': 'not-a-url',
-      },
-      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, url: 'https://www.example.com/my-post/', referrer: 'not-a-url' }),
     });
 
     const view = await env.DB.prepare('SELECT referer_domain FROM link_views WHERE token = ?')

@@ -183,7 +183,7 @@
     showBar(container, '<span class="gl4g-spinner"></span>' + S.loading_text, 'info');
 
     try {
-      const fetchBody = { token, url: location.href.split('?')[0] };
+      const fetchBody = { token, url: location.href.split('?')[0], referrer: document.referrer || null };
       if (CONTENT_SELECTOR) fetchBody.content_selector = CONTENT_SELECTOR;
       const response = await retryFetch(`${API_BASE}/api/gift-link/fetch-content`, {
         method: 'POST',
