@@ -16,11 +16,6 @@ export default {
 
   async scheduled(event, env, ctx) {
     setLevel(env.LOG_LEVEL);
-    // Daily maintenance cron — must match wrangler.toml [triggers].crons
-    if (event.cron === '0 4 * * *') {
-      return handleScheduled(env);
-    }
-    // Keepalive: touch D1 to prevent cold starts
-    await env.DB.prepare('SELECT 1').run();
+    return handleScheduled(env);
   },
 };

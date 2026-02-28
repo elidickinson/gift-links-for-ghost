@@ -17,7 +17,7 @@ database_id = "b721666e-f92b-4125-9fe6-be88ba08fb76"
 
 [triggers]
 # Daily maintenance cron must also match check in src/index.js scheduled()
-crons = ["*/3 * * * *", "0 4 * * *"]
+crons = ["0 4 * * *"]
 
 [[routes]]
 pattern = "giftlinks.net/*"
@@ -32,10 +32,6 @@ enabled = true
 
 [observability.traces]
 enabled = true
-
-[placement]
-# TODO: temporary placement hint to try to avoid problematic EWR datacenter
-region = "aws:us-west-1"
 
 [vars]
 DEFAULT_TTL_DAYS = "14"
