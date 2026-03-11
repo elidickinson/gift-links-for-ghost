@@ -49,6 +49,7 @@ DEFAULT_TTL_DAYS = "14"                # gift links expire after this many days
 DEFAULT_MAX_VIEWS = "0"                # max redemptions per link (0 = unlimited)
 MAX_REFRESH_FAILURES = "5"             # disable session after N consecutive refresh failures
 BOT_EMAIL = "bot@yourdomain.com"       # email address for the bot member on your Ghost site
+# TARPIT_URL = "https://..."           # optional: redirect bot probes (/.env, /wp-admin) to a tarpit URL. 404s if unset.
 
 # Secrets — set via CLI, not in this file:
 #   wrangler secret put ADMIN_PASSWORD
