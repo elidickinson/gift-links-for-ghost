@@ -6,7 +6,7 @@ import { setupDatabase } from './setup-d1.js';
 import emailFixture from './fixtures/magic-link-email.txt?raw';
 
 const EXPECTED_MAGIC_LINK =
-  'https://ghost.eli.pizza/members/?token=OAct-0yzjER-KvjPnoj1LAAobDQO22Ux&action=signin&r=https%3A%2F%2Fghost.eli.pizza%2F';
+  'https://ghost.example.com/members/?token=TestToken-abc123&action=signin&r=https%3A%2F%2Fghost.example.com%2F';
 
 describe('email handler', () => {
   beforeAll(async () => {
@@ -39,12 +39,12 @@ describe('email handler', () => {
 
     // workerd fetchMock can only set one Set-Cookie per response (object headers),
     // so we split across two redirects to test accumulation
-    const origin = fetchMock.get('https://ghost.eli.pizza');
+    const origin = fetchMock.get('https://ghost.example.com');
     origin
       .intercept({ method: 'GET', path: /^\/members\/\?.*token=/ })
       .reply(302, '', {
         headers: {
-          'Location': 'https://ghost.eli.pizza/#set-sig',
+          'Location': 'https://ghost.example.com/#set-sig',
           'Set-Cookie': 'ghost-members-ssr=session-value; Path=/; HttpOnly; Max-Age=15897600',
         },
       });
@@ -52,7 +52,7 @@ describe('email handler', () => {
       .intercept({ method: 'GET', path: '/' })
       .reply(302, '', {
         headers: {
-          'Location': 'https://ghost.eli.pizza/done',
+          'Location': 'https://ghost.example.com/done',
           'Set-Cookie': 'ghost-members-ssr.sig=sig-value; Path=/; HttpOnly; Max-Age=15897600',
         },
       });
@@ -69,12 +69,12 @@ describe('email handler', () => {
     fetchMock.disableNetConnect();
 
     const testJwks = JSON.stringify({ keys: [{ kty: 'RSA', kid: 'test', n: 'abc', e: 'AQAB' }] });
-    const origin = fetchMock.get('https://ghost.eli.pizza');
+    const origin = fetchMock.get('https://ghost.example.com');
     origin
       .intercept({ method: 'GET', path: /^\/members\/\?.*token=/ })
       .reply(302, '', {
         headers: {
-          'Location': 'https://ghost.eli.pizza/#set-sig',
+          'Location': 'https://ghost.example.com/#set-sig',
           'Set-Cookie': 'ghost-members-ssr=full-test-session; Path=/; HttpOnly',
         },
       });
@@ -82,7 +82,7 @@ describe('email handler', () => {
       .intercept({ method: 'GET', path: '/' })
       .reply(302, '', {
         headers: {
-          'Location': 'https://ghost.eli.pizza/done',
+          'Location': 'https://ghost.example.com/done',
           'Set-Cookie': 'ghost-members-ssr.sig=full-test-sig; Path=/; HttpOnly',
         },
       });
@@ -97,7 +97,7 @@ describe('email handler', () => {
     await processRawEmail(rawBuffer, env);
 
     const row = await env.DB.prepare('SELECT cookies, jwks FROM sessions WHERE origin = ?')
-      .bind('https://ghost.eli.pizza').first();
+      .bind('https://ghost.example.com').first();
     expect(row.cookies).toBe('ghost-members-ssr=full-test-session; ghost-members-ssr.sig=full-test-sig');
     expect(row.jwks).toBe(testJwks);
   });

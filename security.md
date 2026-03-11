@@ -23,7 +23,7 @@
 **How:** Craft a JWT with any `sub` email, POST to `/api/gift-link/create`.
 **Impact:** Unlimited gift links for any post URL. Completely bypasses "paid members only".
 **Likelihood:** High — trivial with curl.
-**Mitigation:** RS512 signature verification via Ghost's JWKS endpoint (`/members/.well-known/jwks.json`). Uses `jose` library with `algorithms: ['RS512']`, validates `iss`, `aud`, and `exp` claims. Returns 401 for forged/expired tokens.
+**Mitigation:** RS512 signature verification via Ghost's JWKS endpoint (`/members/.well-known/jwks.json`). Uses Web Crypto API directly (Ghost 6 generates 1024-bit RSA keys, which `jose` rejects). Validates `iss`, `aud`, and `exp` claims. Returns 401 for forged/expired tokens.
 
 ### T2: Mass gift link creation
 **Adversary:** Rogue paid member

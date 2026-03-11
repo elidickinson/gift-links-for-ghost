@@ -5,6 +5,9 @@ name = "giftlinks"
 main = "src/index.js"
 compatibility_date = "2025-12-01"
 
+[build]
+command = "node scripts/build-info.js"
+
 # HTML files imported as text modules (esbuild doesn't support ?raw imports)
 [[rules]]
 type = "Text"
@@ -21,12 +24,9 @@ binding = "DB"
 database_name = "giftlinks"
 database_id = "your-database-id"       # from `wrangler d1 create`
 
-# Cron triggers:
-#   */3 * * * *  — keepalive ping (prevents cold starts)
-#   0 4 * * *    — daily maintenance (session refresh, link expiry)
-# Must match the check in src/index.js scheduled()
+# Daily maintenance cron must also match check in src/index.js scheduled()
 [triggers]
-crons = ["*/3 * * * *", "0 4 * * *"]
+crons = ["0 4 * * *"]
 
 # Custom domain routes — replace with your domain and zone ID
 # Zone ID is on the Cloudflare dashboard Overview tab for your domain
@@ -44,12 +44,9 @@ enabled = true
 [observability.traces]
 enabled = true
 
-# Optional: pin to a region if you hit datacenter issues
-# [placement]
-# region = "aws:us-east-1"
-
 [vars]
-GIFT_TTL_DAYS = "14"                   # gift links expire after this many days
+DEFAULT_TTL_DAYS = "14"                # gift links expire after this many days
+DEFAULT_MAX_VIEWS = "0"                # max redemptions per link (0 = unlimited)
 MAX_REFRESH_FAILURES = "5"             # disable session after N consecutive refresh failures
 BOT_EMAIL = "bot@yourdomain.com"       # email address for the bot member on your Ghost site
 
@@ -67,7 +64,7 @@ BOT_EMAIL = "bot@yourdomain.com"       # email address for the bot member on you
 # DNS:        proxied A record for staging.yourdomain.com → 192.0.2.1
 #
 # [env.staging]
-# vars = { GIFT_TTL_DAYS = "14", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@yourdomain.com" }
+# vars = { DEFAULT_TTL_DAYS = "14", DEFAULT_MAX_VIEWS = "0", MAX_REFRESH_FAILURES = "5", BOT_EMAIL = "staging@yourdomain.com" }
 #
 # [[env.staging.d1_databases]]
 # binding = "DB"

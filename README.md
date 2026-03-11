@@ -90,7 +90,7 @@ These are deliberate decisions, informed by how NYT, Washington Post, Bloomberg,
 ## Security Notes
 
 **Risk: App gets hacked**
- - The bot sessions table could be used to gain access to paid posts. If compromised, Ghsot admins should revoke bot membership in Ghost Admin and re-add/
+ - The bot sessions table could be used to gain access to paid posts. If compromised, Ghost admins should revoke bot membership in Ghost Admin and re-add.
  - Identity of members who recently created gift links could be exposed.
  - Analytics (but not PII) about popularity of different gift links could be exposed
 
@@ -99,7 +99,7 @@ These are deliberate decisions, informed by how NYT, Washington Post, Bloomberg,
  - It is unlikely that Google or other search engines would index a gift link because Ghost adds a `canonical` tag to the main post URL
  
 **Risk: Non-paying members exploit gift link system**
- - It would take a little effort, but someoen who isn't a paid member may be able to trick the the gift link app into creating a gift link for them anyway.
+ - It would take a little effort, but someone who isn't a paid member may be able to trick the gift link app into creating a gift link for them anyway.
  - Plan to address this in the future, but realistically you should not enable gift links if you are very worried about people sneaking around the paywall.
 
 ## Development
