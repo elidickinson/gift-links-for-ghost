@@ -60,7 +60,7 @@ export async function handleRequest(request, env, ctx) {
     return handleAdmin(env);
   }
 
-  if (url.pathname.startsWith('/.') || url.pathname.startsWith('/wp-')) {
+  if (url.pathname.startsWith('/.git') || url.pathname.startsWith('/.env') || url.pathname.startsWith('/wp-')) {
     if (env.TARPIT_URL) return Response.redirect(`${env.TARPIT_URL}${url.pathname}`);
     return new Response('Not Found', { status: 404 });
   }
