@@ -363,10 +363,11 @@
       bar = existing;
       bar.classList.remove('gl4g-info', 'gl4g-error', 'gl4g-success');
       bar.classList.add(`gl4g-${type}`);
-    } else {
-      bar = document.createElement('div');
+    } else if (container) {
+      // Reuse existing bar (e.g. loading spinner → error) instead of creating a second one
+      bar = container.querySelector('.gl4g-bar') || document.createElement('div');
       bar.className = `gl4g-bar gl4g-${type}`;
-      if (container) container.prepend(bar);
+      if (!bar.parentNode) container.prepend(bar);
     }
 
     bar.innerHTML = html;
