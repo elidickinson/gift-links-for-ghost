@@ -1,3 +1,5 @@
+import { log, truncate } from './log.js';
+
 export async function getBotSession(env, origin) {
   const row = await env.DB.prepare('SELECT cookies FROM sessions WHERE origin = ?').bind(origin).first();
   return row ? row.cookies : null;
@@ -11,6 +13,11 @@ export async function storeBotSession(env, origin, cookies, jwks = null) {
 
 const MAGIC_LINK_COOLDOWN_MS = 5 * 60 * 1000;
 
+async function logErrorResponse(response, url, method) {
+  const body = await response.text();
+  log.warn('HTTP error response', { url, finalUrl: response.url, method, status: response.status, body: truncate(body) });
+}
+
 export async function refreshSession(origin, botEmail, db = null) {
   if (db) {
     const row = await db.prepare('SELECT last_magic_link_at FROM sessions WHERE origin = ?').bind(origin).first();
@@ -19,8 +26,11 @@ export async function refreshSession(origin, botEmail, db = null) {
     }
   }
 
-  const integrityResponse = await fetch(`${origin}/members/api/integrity-token`);
+  const integrityResponse = await fetch(`${origin}/members/api/integrity-token`, {
+    headers: { 'User-Agent': 'giftlinks-net-bot/1.0' },
+  });
   if (!integrityResponse.ok) {
+    await logErrorResponse(integrityResponse, `${origin}/members/api/integrity-token`, 'GET');
     const hint = integrityResponse.status === 404
       ? 'Wrong URL?'
       : `HTTP ${integrityResponse.status}`;
@@ -36,10 +46,14 @@ export async function refreshSession(origin, botEmail, db = null) {
 
   const magicLinkResponse = await fetch(`${origin}/members/api/send-magic-link`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'giftlinks-net-bot/1.0',
+    },
     body: JSON.stringify({ email: botEmail, emailType: 'signin', integrityToken }),
   });
   if (!magicLinkResponse.ok) {
+    await logErrorResponse(magicLinkResponse, `${origin}/members/api/send-magic-link`, 'POST');
     const hint = magicLinkResponse.status === 400
       ? `Is ${botEmail} a member of this site?`
       : `HTTP ${magicLinkResponse.status}`;

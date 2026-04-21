@@ -3,6 +3,7 @@ import { handleFetchContent } from './gift-content.js';
 import { handleAdmin } from './admin.js';
 import { handleLanding, handleSetup } from './public-web.js';
 import { processRawEmail } from './email-handler.js';
+import { truncate } from './log.js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -66,17 +67,42 @@ export async function handleRequest(request, env, ctx) {
   }
 
   if (url.pathname.startsWith('/dev/') && env.DEV_MODE) {
-    return handleDevRoute(url.pathname, request, env);
+    return handleDevRoute(url, request, env);
   }
 
   return new Response('Not Found', { status: 404 });
 }
 
-async function handleDevRoute(pathname, request, env) {
+async function handleDevRoute(url, request, env) {
+  const pathname = url.pathname;
+
   if (pathname === '/dev/simulate-email' && request.method === 'POST') {
     const rawEmail = await request.arrayBuffer();
     await processRawEmail(rawEmail, env);
     return Response.json({ ok: true });
+  }
+
+  if (pathname === '/dev/test-connection' && request.method === 'GET') {
+    const targetUrl = url.searchParams.get('url');
+    if (!targetUrl) {
+      return new Response(JSON.stringify({ error: 'Missing url parameter' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const response = await fetch(targetUrl);
+    const body = await response.text();
+    const result = {
+      url: targetUrl,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: truncate(body),
+    };
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   return new Response('Not Found', { status: 404 });

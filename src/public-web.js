@@ -37,6 +37,7 @@ export async function handleSetup(request, env, ctx) {
     return handleLanding({ env, error: 'Invalid URL.', status: 400 });
   }
 
+  log.info('setup: attempting to connect to', origin);
   try {
     await refreshSession(origin, env.BOT_EMAIL);
   } catch (error) {
