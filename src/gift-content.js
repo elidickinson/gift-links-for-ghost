@@ -121,7 +121,10 @@ export function isPaywalled(doc) {
 
 async function fetchGhostContent(url, sessionCookies, contentSelector) {
   const response = await fetch(url, {
-    headers: { 'Cookie': sessionCookies },
+    headers: {
+      'Cookie': sessionCookies,
+      'User-Agent': 'giftlinks-net-bot/1.0',
+    },
   });
 
   if (!response.ok) {
