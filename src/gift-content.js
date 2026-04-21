@@ -6,6 +6,7 @@ import { getBotSession, refreshSession } from './bot-session.js';
 import { corsHeaders } from './router.js';
 import { escapeHtml } from './escape-html.js';
 import { log } from './log.js';
+import { uaFetch } from './ua-fetch.js';
 
 // Fallback chain for themes that don't use Ghost's default section.gh-content.
 // Uses css-select on an htmlparser2 DOM — handles nesting, attribute quoting, etc.
@@ -120,11 +121,8 @@ export function isPaywalled(doc) {
 }
 
 async function fetchGhostContent(url, sessionCookies, contentSelector) {
-  const response = await fetch(url, {
-    headers: {
-      'Cookie': sessionCookies,
-      'User-Agent': 'giftlinks-net-bot/1.0',
-    },
+  const response = await uaFetch(url, {
+    headers: { 'Cookie': sessionCookies },
   });
 
   if (!response.ok) {

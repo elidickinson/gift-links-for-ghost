@@ -1,4 +1,5 @@
 import { log, truncate } from './log.js';
+import { uaFetch } from './ua-fetch.js';
 
 export async function getBotSession(env, origin) {
   const row = await env.DB.prepare('SELECT cookies FROM sessions WHERE origin = ?').bind(origin).first();
@@ -26,9 +27,7 @@ export async function refreshSession(origin, botEmail, db = null) {
     }
   }
 
-  const integrityResponse = await fetch(`${origin}/members/api/integrity-token`, {
-    headers: { 'User-Agent': 'giftlinks-net-bot/1.0' },
-  });
+  const integrityResponse = await uaFetch(`${origin}/members/api/integrity-token`);
   if (!integrityResponse.ok) {
     await logErrorResponse(integrityResponse, `${origin}/members/api/integrity-token`, 'GET');
     const hint = integrityResponse.status === 404
@@ -44,12 +43,9 @@ export async function refreshSession(origin, botEmail, db = null) {
   }
   const integrityToken = integrityBody.trim();
 
-  const magicLinkResponse = await fetch(`${origin}/members/api/send-magic-link`, {
+  const magicLinkResponse = await uaFetch(`${origin}/members/api/send-magic-link`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'giftlinks-net-bot/1.0',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: botEmail, emailType: 'signin', integrityToken }),
   });
   if (!magicLinkResponse.ok) {

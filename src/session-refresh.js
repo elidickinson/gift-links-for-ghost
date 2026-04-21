@@ -1,10 +1,9 @@
 import { listStaleSessions, listAllOrigins, refreshSession } from './bot-session.js';
 import { log } from './log.js';
+import { uaFetch } from './ua-fetch.js';
 
 async function refreshJwks(origin, db) {
-  const response = await fetch(`${origin}/members/.well-known/jwks.json`, {
-    headers: { 'User-Agent': 'giftlinks-net-bot/1.0' },
-  });
+  const response = await uaFetch(`${origin}/members/.well-known/jwks.json`);
   if (!response.ok) {
     throw new Error(`Failed to fetch JWKS for ${origin}: ${response.status}`);
   }

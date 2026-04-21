@@ -1,6 +1,7 @@
 import PostalMime from 'postal-mime';
 import { storeBotSession } from './bot-session.js';
 import { log } from './log.js';
+import { uaFetch } from './ua-fetch.js';
 
 const MAGIC_LINK_REGEX = /https?:\/\/[^\s"]+\/members\/\?token=[^\s"]+/;
 
@@ -14,10 +15,7 @@ export async function followMagicLink(url) {
   let currentUrl = url;
 
   while (true) {
-    const response = await fetch(currentUrl, {
-      redirect: 'manual',
-      headers: { 'User-Agent': 'giftlinks-net-bot/1.0' },
-    });
+    const response = await uaFetch(currentUrl, { redirect: 'manual' });
     const setCookies = response.headers.getSetCookie();
     cookies.push(...setCookies);
 
@@ -48,9 +46,7 @@ export async function processRawEmail(rawEmailBuffer, env) {
   const sessionCookies = await followMagicLink(magicLinkUrl);
 
   // Fetch JWKS so JWT verification works immediately
-  const jwksResponse = await fetch(`${origin}/members/.well-known/jwks.json`, {
-    headers: { 'User-Agent': 'giftlinks-net-bot/1.0' },
-  });
+  const jwksResponse = await uaFetch(`${origin}/members/.well-known/jwks.json`);
   const jwks = jwksResponse.ok ? await jwksResponse.text() : null;
   if (!jwks) {
     log.warn('email: JWKS fetch failed for', origin, jwksResponse.status);
